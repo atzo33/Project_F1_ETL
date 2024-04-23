@@ -10,17 +10,6 @@ default_args = {
     'retries': 1
 }
 
-results_dict = {}
-driver_dict={}
-race_dict={}
-circuit_dict={}
-qualiOrder_dict={}
-constructor_dict={}
-constructorStanding_dict={}
-driverStandings_dict={}
-laptimes_dict = {}
-pitstops_dict = {}
-
 def drop_tables():
     try:
         # Connect to PostgreSQL database
@@ -231,16 +220,16 @@ def read_and_create_dicts():
         df = pd.read_csv('dataEngineeringDataset.csv')
         
         # Create dictionaries to store data
-        # results_dict = {}
-        # driver_dict={}
-        # race_dict={}
-        # circuit_dict={}
-        # qualiOrder_dict={}
-        # constructor_dict={}
-        # constructorStanding_dict={}
-        # driverStandings_dict={}
-        # laptimes_dict = {}
-        # pitstops_dict = {}
+        results_dict = {}
+        driver_dict={}
+        race_dict={}
+        circuit_dict={}
+        qualiOrder_dict={}
+        constructor_dict={}
+        constructorStanding_dict={}
+        driverStandings_dict={}
+        laptimes_dict = {}
+        pitstops_dict = {}
         
         # Iterate through each row in the DataFrame and populate dictionaries
         for index, row in df.iterrows():
@@ -408,7 +397,7 @@ def read_and_create_dicts():
 
         # Insert data into the results table
         
-
+        
         insert_driver_data(driver_dict)
 
         insert_circuit_data(circuit_dict)
@@ -941,6 +930,7 @@ with DAG('etlPipeline',
     python_callable=read_and_create_dicts,
     
     )
+
 
     
 
