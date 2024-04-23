@@ -990,18 +990,28 @@ def etl_pitstops():
         # Create a cursor object using the cursor() method
         cursor = conn.cursor()
 
-        for key, data in pitstops_dict.items():
-            # Handling the case where the duration format is invalid
-            pitstop_duration = data["duration"]
-            try:
-                # Try to convert the duration to float
-                pitstop_duration = float(pitstop_duration)
-            except ValueError:
-                # If conversion fails, set duration to NULL
-                pitstop_duration = None
+        # for key, data in pitstops_dict.items():
+        #     # Handling the case where the duration format is invalid
+        #     pitstop_duration = data["duration"]
+        #     try:
+        #         # Try to convert the duration to float
+        #         pitstop_duration = float(pitstop_duration)
+        #     except ValueError:
+        #         # If conversion fails, set duration to NULL
+        #         pitstop_duration = None
 
         # Iterate through each entry in the pitstops dictionary and insert into the pitstops table
         for key, data in pitstops_dict.items():
+            
+            
+
+            
+    
+            pitstop_duration=data["duration"]
+            
+            if not isinstance(pitstop_duration, float):
+                pitstop_duration = None
+
             cursor.execute("""
                 INSERT INTO pitstops ("resultId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
