@@ -3,6 +3,8 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 import psycopg2
 import pandas as pd
+import requests
+import xml.etree.ElementTree as ET
 
 default_args = {
     'owner': 'airflow',
@@ -230,6 +232,7 @@ def read_and_create_dicts():
         driverStandings_dict={}
         laptimes_dict = {}
         pitstops_dict = {}
+
         
         # Iterate through each row in the DataFrame and populate dictionaries
         for index, row in df.iterrows():
@@ -907,6 +910,106 @@ def insert_constructor_data(constructor_dict):
             conn.close()
             print("PostgreSQL connection is closed")
 
+
+def scraping_data_and_loading_into_db():
+    race_Id=5000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        
+        
+        race_number = 1
+       
+        
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
+            response = requests.get(url)
+            data = response.json()
+            
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_table = data['MRData']['RaceTable']
+                race_data = race_table.get('Races', [])
+
+                if not race_data:  # Check if "Races" is empty
+                    print(f"No race data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+                
+                # Extract additional details
+                season = race_table['season']
+                round_number = race_table['round']
+                race_date = race_data[0]['date']
+                race_time = race_data[0]['time']
+                circuit_name = race_data[0]['Circuit']['circuitName']
+
+                print("Season:", season)
+                print("Round:", round_number)
+                print("Date:", race_date)
+                print("Time:", race_time)
+                print("Circuit name",circuit_name)
+                print("Race id je",race_Id)
+                    
+
+                cursor.execute("SELECT * FROM circuit WHERE name_y = %s", (circuit_name,))
+                circuit_id = cursor.fetchone()
+                
+                if circuit_id:
+                    circuit_id = circuit_id[0]
+                    
+
+                    cursor.execute("""
+                            INSERT INTO race ("raceId", "circuitId", "year", "round", "date", "time")
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (
+                                race_Id,
+                                circuit_id,
+                                season,
+                                round_number,
+                                race_date,
+                                race_time
+                            ))
+                    
+
+                    # Commit changes to the database
+                    
+                    conn.commit()
+
+                    # Print additional details
+                    print("Season:", season)
+                    print("Round:", round_number)
+                    print("Date:", race_date)
+                    print("Time:", race_time)
+                    print("Circuit name",circuit_name)
+                    
+                    # Continue processing race data
+                    print("Race number is", race_number)
+                    race_number += 1
+                    print("Race id is", race_Id)
+                    race_Id=race_Id+1
+                    
+                else:
+                    print("Circuit not found:", circuit_name)
+                    break
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+
+
 with DAG('etlPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
@@ -926,8 +1029,17 @@ with DAG('etlPipeline',
     python_callable=read_and_create_dicts,
     
     )
+    insert_scraped_data_task = PythonOperator(
+    task_id='insert_scraped_data_task',
+    python_callable=scraping_data_and_loading_into_db,
+    
+    )
+
+
+
+
 
 
     
 
-    drop_tables_task >> create_tables_task >> insert_data_task
+    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_data_task
