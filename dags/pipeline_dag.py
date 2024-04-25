@@ -319,7 +319,7 @@ def read_and_create_dicts():
             if row["circuitId"] not in circuit_dict:
                 circuit_dict[row["circuitId"]] = {
                     "circuitId":row["circuitId"],
-                    "name_x": row["name_x"],
+                    "circuitRef": row["circuitRef"],
                     "name_y": row["name_y"],
                     "location": row["location"],
                     "country": row["country"],
@@ -559,7 +559,7 @@ def insert_circuit_data(circuit_dict):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 data["circuitId"],
-                data["name_x"],
+                data["circuitRef"],
                 data["name_y"],
                 data["location"],
                 data["country"],
@@ -864,7 +864,6 @@ def insert_pitstops_data(pitstops_dict):
             conn.close()
             print("PostgreSQL connection is closed")
 
-
 def insert_constructor_data(constructor_dict):
     try:
         # Connect to PostgreSQL database
@@ -910,8 +909,209 @@ def insert_constructor_data(constructor_dict):
             conn.close()
             print("PostgreSQL connection is closed")
 
+# Inserting scraped data into existing tables in database
+def scraping_data_and_loading_circuits():
+    circuit_id = 1000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
 
-def scraping_data_and_loading_into_db():
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/circuits.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'CircuitTable' in data['MRData']:
+                circuits = data['MRData']['CircuitTable']['Circuits']
+
+                if not circuits:  # Check if circuits data is empty
+                    print(f"No circuit data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for circuit_data in circuits:
+                    circuit_id_json = circuit_data['circuitId']
+                    name_y = circuit_data['circuitName']
+                    location = circuit_data['Location']['locality']
+                    country = circuit_data['Location']['country']
+                    lat = circuit_data['Location']['lat']
+                    lng = circuit_data['Location']['long']
+
+                    # Check if circuit exists in the database
+                    cursor.execute('SELECT * FROM circuit WHERE "name_y" = %s', (name_y,))
+                    result = cursor.fetchone()
+                    if not result:
+                        # Insert new circuit into the database
+                        cursor.execute("""
+                            INSERT INTO circuit ("circuitId", "name_x", "name_y", "location", "country", "lat", "lng")
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (circuit_id, circuit_id_json, name_y, location, country, lat, lng))
+
+                        # Commit changes to the database
+                        conn.commit()
+
+                        circuit_id += 1
+
+                        # Print additional details
+                        print("Inserted new circuit:", name_y)
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+def scraping_data_and_loading_drivers():
+    driver_Id=1000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/drivers.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'DriverTable' in data['MRData']:
+                drivers = data['MRData']['DriverTable']['Drivers']
+
+                if not drivers:  # Check if drivers data is empty
+                    print(f"No driver data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for driver_data in drivers:
+                    
+                    driver_ref = driver_data['driverId']
+                    number = driver_data['permanentNumber']
+                    code = driver_data['code']
+                    forename = driver_data['givenName']
+                    surname = driver_data['familyName']
+                    dob = driver_data['dateOfBirth']
+                    nationality = driver_data['nationality']
+
+                    # Check if driver exists in the database
+                    cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_ref,))
+                    result = cursor.fetchone()
+                    if not result:
+                        # Insert new driver into the database
+                        cursor.execute("""
+                            INSERT INTO driver ("driverId", "driverRef", "number", "code", "forename", "surname", "dob", "nationality")
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (driver_Id,driver_ref, number, code, forename, surname, dob, nationality))
+
+                        # Commit changes to the database
+                        conn.commit()
+
+                        driver_Id=driver_Id+1
+
+                        # Print additional details
+                        print("Inserted new driver:", forename, surname)
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+def scraping_data_and_loading_constructors():
+    constructor_Id=1000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/constructors.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'ConstructorTable' in data['MRData']:
+                constructors = data['MRData']['ConstructorTable']['Constructors']
+
+                if not constructors:  # Check if constructors data is empty
+                    print(f"No constructor data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for constructor_data in constructors:
+                    
+                    constructor_ref = constructor_data['constructorId']
+                    name = constructor_data['name']
+                    nationality = constructor_data['nationality']
+
+                    # Check if constructor exists in the database
+                    cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_ref,))
+                    result = cursor.fetchone()
+                    if not result:
+                        # Insert new constructor into the database
+                        cursor.execute("""
+                            INSERT INTO constructor ("constructorId","constructorRef", "name", "nationality")
+                            VALUES (%s, %s, %s,%s)
+                        """, (constructor_Id,constructor_ref, name, nationality))
+
+                        # Commit changes to the database
+                        conn.commit()
+                        constructor_Id=constructor_Id+1
+                        
+
+                        # Print additional details
+                        print("Inserted new constructor:", name)
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+def scraping_data_and_loading_racetable():
     race_Id=5000
     try:
         conn = psycopg2.connect(
@@ -1008,7 +1208,146 @@ def scraping_data_and_loading_into_db():
             conn.close()
             print("PostgreSQL connection is closed")
 
+def scraping_data_and_loading_driverstandings():
+    driverStandings_id = 80000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
 
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/driverStandings.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'StandingsTable' in data['MRData']:
+                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['DriverStandings']
+
+                if not standings:  # Check if standings data is empty
+                    print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for driver_data in standings:
+                    driver_id = driver_data['Driver']['driverId']
+                    forename = driver_data['Driver']['givenName']
+                    surname = driver_data['Driver']['familyName']
+                    points = int(driver_data['points'])
+                    position = int(driver_data['position'])
+                    wins = int(driver_data['wins'])
+
+                    # Fetch driverId from the database (case-sensitive)
+                    cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_id,))
+                    result = cursor.fetchone()
+                    if result:
+                        driver_id_from_db = result[0]
+
+                        # Insert data into driverstandings table
+                        cursor.execute("""
+                            INSERT INTO driverstandings ("driverStandingsId", "driverId", "forename", "surname", "points", "position", "wins")
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (driverStandings_id, driver_id_from_db, forename, surname, points, position, wins))
+
+                        # Commit changes to the database
+                        conn.commit()
+
+                        # Print additional details
+                        print("Inserted driver standings for:", forename, surname)
+                        driverStandings_id += 1
+                    else:
+                        print("Driver not found in the database:", driver_id)
+                        continue
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+def scraping_data_and_loading_constructorstandings():
+    constructorStandings_id = 90000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/constructorstandings.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'StandingsTable' in data['MRData']:
+                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['ConstructorStandings']
+
+                if not standings:  # Check if standings data is empty
+                    print(f"No constructor standings data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for constructor_data in standings:
+                    constructor_id = constructor_data['Constructor']['constructorId']
+                    constructor_name = constructor_data['Constructor']['name']
+                    points = int(constructor_data['points'])
+                    position = int(constructor_data['position'])
+                    wins = int(constructor_data['wins'])
+
+                    # Fetch constructorId from the database (case-sensitive)
+                    cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_id,))
+                    result = cursor.fetchone()
+                    if result:
+                        constructor_id_from_db = result[0]
+
+                        # Insert data into constructorstandings table
+                        cursor.execute("""
+                            INSERT INTO constructorstandings ("constructorStandingsId", "constructorId", "constructorName", "points", "position", "wins")
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (constructorStandings_id, constructor_id_from_db, constructor_name, points, position, wins))
+
+                        # Commit changes to the database
+                        conn.commit()
+
+                        # Print additional details
+                        print("Inserted constructor standings for:", constructor_name)
+                        constructorStandings_id += 1
+                    else:
+                        print("Constructor not found in the database:", constructor_id)
+                        continue
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
 
 with DAG('etlPipeline', 
          default_args=default_args,
@@ -1031,10 +1370,41 @@ with DAG('etlPipeline',
     )
     insert_scraped_data_task = PythonOperator(
     task_id='insert_scraped_data_task',
-    python_callable=scraping_data_and_loading_into_db,
+    python_callable=scraping_data_and_loading_racetable,
+    
+    )
+    insert_scraped_driverstandings_task = PythonOperator(
+    task_id='insert_scraped_driverstandings_task',
+    python_callable=scraping_data_and_loading_driverstandings,
+    
+    )
+    insert_scraped_constructorstandings_task = PythonOperator(
+    task_id='insert_scraped_constructorstandings_task',
+    python_callable=scraping_data_and_loading_constructorstandings,
     
     )
 
+    insert_scraped_drivers_task = PythonOperator(
+    task_id='insert_scraped_drivers_task',
+    python_callable=scraping_data_and_loading_drivers,
+    
+    )
+
+    insert_scraped_constructors_task = PythonOperator(
+    task_id='insert_scraped_constructors_task',
+    python_callable=scraping_data_and_loading_constructors,
+    
+    )
+
+    insert_scraped_circuits_task = PythonOperator(
+    task_id='insert_scraped_circuits_task',
+    python_callable=scraping_data_and_loading_circuits,
+    
+    )
+
+    
+
+
 
 
 
@@ -1042,4 +1412,4 @@ with DAG('etlPipeline',
 
     
 
-    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_data_task
+    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task
