@@ -144,6 +144,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "driverstandings" (
                    "driverStandingsId" INT PRIMARY KEY,
+                   "raceId" INT,
                    "driverId" INT,
                    "forename" VARCHAR,
                    "surname" VARCHAR,
@@ -154,6 +155,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "constructorstandings" (
                    "constructorStandingsId" INT PRIMARY KEY,
+                   "raceId" INT,
                    "constructorId" INT,
                    "constructorName" VARCHAR,
                    "points" INT,
@@ -345,6 +347,7 @@ def read_and_create_dicts():
             if row["constructorStandingsId"] not in constructorStanding_dict:
                 constructorStanding_dict[row["constructorStandingsId"]] = {
                     "constructorStandingsId":row["constructorStandingsId"],
+                    "raceId":row["raceId"],
                     "constructorId": row["constructorId"],
                     "constructorRef": row["constructorRef"],
                     "points": row["points_constructorstandings"],
@@ -356,6 +359,7 @@ def read_and_create_dicts():
             if row["driverStandingsId"] not in driverStandings_dict:
                 driverStandings_dict[row["driverStandingsId"]] = {
                     "driverStandingsId":row["driverStandingsId"],
+                    "raceId":row["raceId"],
                     "driverId": row["driverId"],
                     "forename": row["forename"],
                     "surname": row["surname"],
@@ -703,10 +707,11 @@ def insert_constructor_standings_data(constructorStanding_dict):
         # Iterate through each entry in the constructorStanding dictionary and insert into the constructorstandings table
         for constructorStandingsId, data in constructorStanding_dict.items():
             cursor.execute("""
-                INSERT INTO constructorstandings ("constructorStandingsId", "constructorId", "constructorName", "points", "position", "wins")
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO constructorstandings ("constructorStandingsId","raceId","constructorId", "constructorName", "points", "position", "wins")
+                VALUES (%s,%s, %s, %s, %s, %s, %s)
             """, (
                 data["constructorStandingsId"],
+                data["raceId"],
                 data["constructorId"],
                 data["constructorRef"],
                 data["points"],
@@ -745,10 +750,11 @@ def insert_driver_standings_data(driverStandings_dict):
         # Iterate through each entry in the driverStandings dictionary and insert into the driverstandings table
         for driverStandingsId, data in driverStandings_dict.items():
             cursor.execute("""
-                INSERT INTO driverstandings ("driverStandingsId", "driverId", "forename", "surname", "points", "position", "wins")
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
+                VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
             """, (
                 data["driverStandingsId"],
+                data["raceId"],
                 data["driverId"],
                 data["forename"],
                 data["surname"],
@@ -1349,6 +1355,116 @@ def scraping_data_and_loading_constructorstandings():
             conn.close()
             print("PostgreSQL connection is closed")
 
+
+def insert_race_results():
+    result_id = 30000
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_data = data['MRData']['RaceTable']['Races'][0]
+                race_name = race_data['raceName']
+                race_date = race_data['date']
+                race_time = race_data['time']
+                circuit_id = race_data['Circuit']['circuitId']
+
+                # Get the race ID from the races database
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id = race_id_result[0]
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+
+                results = race_data['Results']
+
+                for result in results:
+                    driver_id_json = result['Driver']['driverId']
+                    constructor_id_json = result['Constructor']['constructorId']
+                    car_number = result['number']
+                    position_order = result['grid']
+                    points = result['points']
+                    laps = result['laps']
+                    status = result['status']
+
+                    # Get driver ID from the database
+                    cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id_json,))
+                    driver_id_result = cursor.fetchone()
+                    if driver_id_result:
+                        driver_id = driver_id_result[0]
+                    else:
+                        print("Driver not found in the database:", driver_id_json)
+                        continue
+
+                    # Get constructor ID from the database
+                    cursor.execute('SELECT "constructorId" FROM constructor WHERE "constructorRef" = %s', (constructor_id_json,))
+                    constructor_id_result = cursor.fetchone()
+                    if constructor_id_result:
+                        constructor_id = constructor_id_result[0]
+                    else:
+                        print("Constructor not found in the database:", constructor_id_json)
+                        continue
+
+                    # Get driver standings ID
+                    cursor.execute('SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id))
+                    driver_standings_id_result = cursor.fetchone()
+                    if driver_standings_id_result:
+                        driver_standings_id = driver_standings_id_result[0]
+                    else:
+                        print("Driver standings ID not found in the database.")
+                        continue
+
+                    # Get constructor standings ID
+                    cursor.execute('SELECT "constructorStandingsId" FROM constructorstandings WHERE "raceId" = %s AND "constructorId" = %s', (race_id, constructor_id))
+                    constructor_standings_id_result = cursor.fetchone()
+                    if constructor_standings_id_result:
+                        constructor_standings_id = constructor_standings_id_result[0]
+                    else:
+                        print("Constructor standings ID not found in the database.")
+                        continue
+
+                    # Insert into results table
+                    cursor.execute("""
+                        INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (result_id, race_id, driver_id, constructor_id, car_number, position_order, points, laps, race_time, result['FastestLap']['lap'], result['FastestLap']['rank'], result['FastestLap']['Time']['time'], result['FastestLap']['AverageSpeed']['speed'], result['position'], driver_standings_id, constructor_standings_id, status))
+
+                    # Commit changes to the database
+                    conn.commit()
+
+                    print("Inserted race result for:", race_name, "Driver:", result['Driver']['givenName'], result['Driver']['familyName'])
+                result_id += 1
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+
 with DAG('etlPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
@@ -1402,6 +1518,12 @@ with DAG('etlPipeline',
     
     )
 
+    insert_scraped_results_task = PythonOperator(
+    task_id='insert_scraped_results_task',
+    python_callable=insert_race_results,
+    
+    )
+
     
 
 
@@ -1412,4 +1534,4 @@ with DAG('etlPipeline',
 
     
 
-    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task
+    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task
