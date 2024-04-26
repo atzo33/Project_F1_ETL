@@ -846,7 +846,11 @@ def insert_pitstops_data(pitstops_dict):
 
 
             if not isinstance(pitstop_duration, float):
-                pitstop_duration = None
+                        try:
+                            pitstop_duration = float(pitstop_duration)
+                        except ValueError:
+                            pitstop_duration = None
+                            
             cursor.execute("""
                 INSERT INTO pitstops ("resultId","raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -1648,7 +1652,10 @@ def scraping_data_and_loading_pitstops():
 
                     print("Pitstop duration is",pitstop_duration)
                     if not isinstance(pitstop_duration, float):
-                        pitstop_duration = None
+                        try:
+                            pitstop_duration = float(pitstop_duration)
+                        except ValueError:
+                            pitstop_duration = None
 
                     # Get driver info from the driver table
                     cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
