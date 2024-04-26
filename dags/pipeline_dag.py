@@ -1240,6 +1240,17 @@ def scraping_data_and_loading_driverstandings():
                     print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
                     break
 
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+                
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id = race_id_result[0]
+                    print("Race id je ",race_id)
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+
+
                 for driver_data in standings:
                     driver_id = driver_data['Driver']['driverId']
                     forename = driver_data['Driver']['givenName']
@@ -1256,9 +1267,9 @@ def scraping_data_and_loading_driverstandings():
 
                         # Insert data into driverstandings table
                         cursor.execute("""
-                            INSERT INTO driverstandings ("driverStandingsId", "driverId", "forename", "surname", "points", "position", "wins")
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """, (driverStandings_id, driver_id_from_db, forename, surname, points, position, wins))
+                            INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
+                            VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
+                        """, (driverStandings_id,race_id, driver_id_from_db, forename, surname, points, position, wins))
 
                         # Commit changes to the database
                         conn.commit()
@@ -1311,6 +1322,18 @@ def scraping_data_and_loading_constructorstandings():
                     print(f"No constructor standings data found for the given year and race number {race_number}. Exiting loop.")
                     break
 
+
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+                
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id = race_id_result[0]
+                    print("Race id je ",race_id)
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+            
+
                 for constructor_data in standings:
                     constructor_id = constructor_data['Constructor']['constructorId']
                     constructor_name = constructor_data['Constructor']['name']
@@ -1326,9 +1349,9 @@ def scraping_data_and_loading_constructorstandings():
 
                         # Insert data into constructorstandings table
                         cursor.execute("""
-                            INSERT INTO constructorstandings ("constructorStandingsId", "constructorId", "constructorName", "points", "position", "wins")
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (constructorStandings_id, constructor_id_from_db, constructor_name, points, position, wins))
+                            INSERT INTO constructorstandings ("constructorStandingsId","raceId", "constructorId", "constructorName", "points", "position", "wins")
+                            VALUES (%s, %s, %s, %s, %s, %s,%s)
+                        """, (constructorStandings_id,race_id, constructor_id_from_db, constructor_name, points, position, wins))
 
                         # Commit changes to the database
                         conn.commit()
@@ -1357,7 +1380,6 @@ def scraping_data_and_loading_constructorstandings():
 
 
 def insert_race_results():
-    result_id = 30000
     try:
         conn = psycopg2.connect(
             dbname="f1_database",
@@ -1368,6 +1390,7 @@ def insert_race_results():
         )
         cursor = conn.cursor()
 
+        result_id = 30000
         race_number = 1
 
         while True:
@@ -1379,14 +1402,19 @@ def insert_race_results():
                 race_data = data['MRData']['RaceTable']['Races'][0]
                 race_name = race_data['raceName']
                 race_date = race_data['date']
-                race_time = race_data['time']
+
+                # Extract race time if available
+                race_time = race_data['Results'][0]['Time'].get('time', None) if race_data['Results'] else None
+
                 circuit_id = race_data['Circuit']['circuitId']
 
                 # Get the race ID from the races database
                 cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+
                 race_id_result = cursor.fetchone()
                 if race_id_result:
                     race_id = race_id_result[0]
+                    print("Race id je ", race_id)
                 else:
                     print(f"Race ID not found for race number {race_number}. Exiting loop.")
                     break
@@ -1407,6 +1435,7 @@ def insert_race_results():
                     driver_id_result = cursor.fetchone()
                     if driver_id_result:
                         driver_id = driver_id_result[0]
+                        print("Driver id je", driver_id)
                     else:
                         print("Driver not found in the database:", driver_id_json)
                         continue
@@ -1421,7 +1450,9 @@ def insert_race_results():
                         continue
 
                     # Get driver standings ID
-                    cursor.execute('SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id))
+                    cursor.execute(
+                        'SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s',
+                        (race_id, driver_id))
                     driver_standings_id_result = cursor.fetchone()
                     if driver_standings_id_result:
                         driver_standings_id = driver_standings_id_result[0]
@@ -1438,20 +1469,33 @@ def insert_race_results():
                         print("Constructor standings ID not found in the database.")
                         continue
 
+                    # Extract fastest lap details or set to None if 'FastestLap' object is missing
+                    fastest_lap = result.get('FastestLap', None)
+                    if fastest_lap:
+                        fastest_lap_lap = fastest_lap.get('lap', None)
+                        rank_of_fastest_lap = fastest_lap.get('rank', None)
+                        fastest_lap_time = fastest_lap['Time'].get('time', None)
+                        fastest_lap_speed = fastest_lap['AverageSpeed'].get('speed', None)
+                    else:
+                        fastest_lap_lap = rank_of_fastest_lap = fastest_lap_time = fastest_lap_speed = None
+
                     # Insert into results table
                     cursor.execute("""
                         INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (result_id, race_id, driver_id, constructor_id, car_number, position_order, points, laps, race_time, result['FastestLap']['lap'], result['FastestLap']['rank'], result['FastestLap']['Time']['time'], result['FastestLap']['AverageSpeed']['speed'], result['position'], driver_standings_id, constructor_standings_id, status))
+                    """, (result_id, race_id, driver_id, constructor_id, car_number, position_order, points, laps, race_time, fastest_lap_lap, rank_of_fastest_lap, fastest_lap_time, fastest_lap_speed, result['position'], driver_standings_id, constructor_standings_id, status))
 
                     # Commit changes to the database
                     conn.commit()
 
+                    result_id = result_id + 1
+
                     print("Inserted race result for:", race_name, "Driver:", result['Driver']['givenName'], result['Driver']['familyName'])
-                result_id += 1
+                race_number = race_number + 1
                 # Continue processing next race data
                 print("Race number is", race_number)
-                race_number += 1
+                print("Result_id is", result_id)
+
             else:
                 print("Failed to fetch data from the API.")
                 break
