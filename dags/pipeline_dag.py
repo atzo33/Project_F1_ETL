@@ -165,6 +165,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "lapsinfo" (
                    "resultId" INT,
+                   "raceId" INT,
                    "driverId" INT,
                    "forename" VARCHAR,
                    "surname" VARCHAR,
@@ -373,6 +374,7 @@ def read_and_create_dicts():
             if (result_id, driver_id, lap) not in laptimes_dict:
                 laptimes_dict[(result_id, driver_id, lap)] = {
                     "resultId":row["resultId"],
+                    "raceId":row["raceId"],
                     "driverId":row["driverId"],
                     "forename": row["forename"],
                     "surname": row["surname"],
@@ -794,10 +796,11 @@ def insert_laptimes_data(laptimes_dict):
         # Iterate through each entry in the laptimes dictionary and insert into the laptimes table
         for key, data in laptimes_dict.items():
             cursor.execute("""
-                INSERT INTO lapsinfo ("resultId", "driverId", "forename", "surname", "lap", "position", "time")
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO lapsinfo ("resultId","raceId", "driverId", "forename", "surname", "lap", "position", "time")
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 data["resultId"],
+                data["raceId"],
                 data["driverId"],
                 data["forename"],
                 data["surname"],
@@ -1509,6 +1512,96 @@ def insert_race_results():
             print("PostgreSQL connection is closed")
 
 
+def scraping_data_and_loading_lapsinfo():
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            lap_number_incr = 1
+            while True:
+                url = f"http://ergast.com/api/f1/2024/{race_number}/laps/{lap_number_incr}.json"
+                response = requests.get(url)
+                data = response.json()
+
+                if 'MRData' in data and 'RaceTable' in data['MRData']:
+                    race_data = data['MRData']['RaceTable']['Races'][0]
+                    season = race_data['season']
+                    race_round = race_data['round']
+                    race_id = None
+
+                    # Get raceId from the race table
+                    cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
+                    race_id_result = cursor.fetchone()
+                    if race_id_result:
+                        race_id = race_id_result[0]
+                    else:
+                        print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
+                        break
+
+                    laps = race_data['Laps']
+                    for lap_data in laps:
+                        lap_number = lap_data['number']
+
+                        for timing in lap_data['Timings']:
+                            driver_id = timing['driverId']
+                            position = timing['position']
+                            lap_time = timing['time']
+
+                            # Get driver info from the driver table
+                            cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
+                            driver_info = cursor.fetchone()
+                            if driver_info:
+                                print("Info o driveru je",driver_info)
+                                driver_id_db, forename, surname = driver_info
+                            else:
+                                print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
+                                continue
+
+                            # Get resultId from the results table
+                            cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id_db))
+                            result_id_result = cursor.fetchone()
+                            if result_id_result:
+                                result_id = result_id_result[0]
+                                print("Result id je",result_id)
+                            else:
+                                print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
+                                continue
+
+                            # Insert lap info into the lapsinfo table
+                            cursor.execute("""
+                                INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (result_id, race_id, driver_id_db, forename, surname, lap_number, position, lap_time))
+
+                            # Commit changes to the database
+                            conn.commit()
+
+                    # Increment lap number for the next iteration
+                    lap_number_incr += 1
+                else:
+                    print("Failed to fetch data from the API.")
+                    break
+
+            # Increment race number for the next iteration
+            race_number += 1
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
 with DAG('etlPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
@@ -1568,6 +1661,12 @@ with DAG('etlPipeline',
     
     )
 
+    insert_scraped_lapsinfo_task = PythonOperator(
+    task_id='insert_scraped_lapsinfo_task',
+    python_callable=scraping_data_and_loading_lapsinfo,
+    
+    )
+
     
 
 
@@ -1578,4 +1677,4 @@ with DAG('etlPipeline',
 
     
 
-    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task
+    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> insert_scraped_lapsinfo_task
