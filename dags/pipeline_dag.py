@@ -11,7 +11,7 @@ default_args = {
     'start_date': datetime(2024, 4, 19),
     'retries': 1
 }
-
+# Droping existing tables and creating new tables within same database
 def drop_tables():
     try:
         # Connect to PostgreSQL database
@@ -219,6 +219,7 @@ def create_tables():
             conn.close()
             print("PostgreSQL connection is closed")
 
+# Reading from csv and mapping data into dictionaries to save memory
 def read_and_create_dicts():
     try:
         # Read the CSV file into a pandas DataFrame
@@ -432,6 +433,7 @@ def read_and_create_dicts():
     except Exception as error:
         print("Error:", error)
 
+# Implementing transformation and insertion logic from maps to database
 def insert_results_data(results_dict):
     try:
         # Connect to PostgreSQL database
@@ -1860,6 +1862,6 @@ with DAG('etlPipeline',
 
 
 
-    
+    # Defining order in which airflow tasks will be executed
 
     drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task,insert_scraped_data_task] >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> [insert_scraped_lapsinfo_task,insert_scraped_pitstop_task,insert_scraped_qualificationOrder_task]
