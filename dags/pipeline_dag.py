@@ -850,7 +850,7 @@ def insert_pitstops_data(pitstops_dict):
                             pitstop_duration = float(pitstop_duration)
                         except ValueError:
                             pitstop_duration = None
-                            
+
             cursor.execute("""
                 INSERT INTO pitstops ("resultId","raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -926,6 +926,7 @@ def insert_constructor_data(constructor_dict):
             print("PostgreSQL connection is closed")
 
 # Inserting scraped data into existing tables in database
+
 def scraping_data_and_loading_circuits():
     circuit_id = 1000
     try:
@@ -1388,7 +1389,6 @@ def scraping_data_and_loading_constructorstandings():
             conn.close()
             print("PostgreSQL connection is closed")
 
-
 def insert_race_results():
     try:
         conn = psycopg2.connect(
@@ -1518,7 +1518,6 @@ def insert_race_results():
             conn.close()
             print("PostgreSQL connection is closed")
 
-
 def scraping_data_and_loading_lapsinfo():
     try:
         conn = psycopg2.connect(
@@ -1600,6 +1599,83 @@ def scraping_data_and_loading_lapsinfo():
 
             # Increment race number for the next iteration
             race_number += 1
+    except Exception as error:
+        print("Error:", error)
+    finally:
+        # Closing database connection
+        if conn:
+            cursor.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+
+def scraping_data_and_loading_qualificationorder():
+    try:
+        conn = psycopg2.connect(
+            dbname="f1_database",
+            user="airflow",
+            password="airflow",
+            host="praksa_postgres_1",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        race_number = 1
+
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/qualifying.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_data = data['MRData']['RaceTable']['Races'][0]
+                season = race_data['season']
+                race_round = race_data['round']
+                race_id = None
+
+                # Get raceId from the race table
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id = race_id_result[0]
+                else:
+                    print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
+                    break
+
+                qualifying_results = race_data.get('QualifyingResults', [])
+                for result_data in qualifying_results:
+                    driver_data = result_data['Driver']
+                    constructor_data = result_data['Constructor']
+                    driver_id = driver_data['driverId']
+                    forename = driver_data['givenName']
+                    surname = driver_data['familyName']
+                    constructor_name = constructor_data['name']
+                    grid = result_data['position']
+                    year = season
+                    name_x = race_data['raceName']
+
+                    # Get driverId from the driver table
+                    cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id,))
+                    driver_id_result = cursor.fetchone()
+                    if driver_id_result:
+                        driver_id_db = driver_id_result[0]
+                    else:
+                        print(f"Driver ID not found in the database for driverId {driver_id}. Skipping.")
+                        continue
+
+                    # Insert qualification order info into the qualificationorder table
+                    cursor.execute("""
+                        INSERT INTO qualificationorder ("raceId", "driverId", "forename", "surname", "constructorName", "grid", "year", "name_x")
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (race_id, driver_id_db, forename, surname, constructor_name, grid, year, name_x))
+
+                    # Commit changes to the database
+                    conn.commit()
+
+                # Increment race number for the next iteration
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
     except Exception as error:
         print("Error:", error)
     finally:
@@ -1699,6 +1775,7 @@ def scraping_data_and_loading_pitstops():
             print("PostgreSQL connection is closed")
 
 
+
 with DAG('etlPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
@@ -1769,6 +1846,12 @@ with DAG('etlPipeline',
     
     )
 
+    insert_scraped_qualificationOrder_task = PythonOperator(
+    task_id='insert_scraped_qualificationOrder_task',
+    python_callable=scraping_data_and_loading_qualificationorder,
+    
+    )
+
     
 
 
@@ -1779,4 +1862,4 @@ with DAG('etlPipeline',
 
     
 
-    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task] >> insert_scraped_data_task >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> insert_scraped_lapsinfo_task >> insert_scraped_pitstop_task
+    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task,insert_scraped_data_task] >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> [insert_scraped_lapsinfo_task,insert_scraped_pitstop_task,insert_scraped_qualificationOrder_task]
