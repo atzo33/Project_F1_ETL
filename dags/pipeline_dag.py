@@ -929,765 +929,765 @@ def insert_constructor_data(constructor_dict):
 
 # Inserting scraped data into existing tables in database
 
-def scraping_data_and_loading_circuits():
-    circuit_id = 1000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_circuits():
+#     circuit_id = 1000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/circuits.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/circuits.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'CircuitTable' in data['MRData']:
-                circuits = data['MRData']['CircuitTable']['Circuits']
+#             if 'MRData' in data and 'CircuitTable' in data['MRData']:
+#                 circuits = data['MRData']['CircuitTable']['Circuits']
 
-                if not circuits:  # Check if circuits data is empty
-                    print(f"No circuit data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not circuits:  # Check if circuits data is empty
+#                     print(f"No circuit data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
 
-                for circuit_data in circuits:
-                    circuit_id_json = circuit_data['circuitId']
-                    name_y = circuit_data['circuitName']
-                    location = circuit_data['Location']['locality']
-                    country = circuit_data['Location']['country']
-                    lat = circuit_data['Location']['lat']
-                    lng = circuit_data['Location']['long']
+#                 for circuit_data in circuits:
+#                     circuit_id_json = circuit_data['circuitId']
+#                     name_y = circuit_data['circuitName']
+#                     location = circuit_data['Location']['locality']
+#                     country = circuit_data['Location']['country']
+#                     lat = circuit_data['Location']['lat']
+#                     lng = circuit_data['Location']['long']
 
-                    # Check if circuit exists in the database
-                    cursor.execute('SELECT * FROM circuit WHERE "name_y" = %s', (name_y,))
-                    result = cursor.fetchone()
-                    if not result:
-                        # Insert new circuit into the database
-                        cursor.execute("""
-                            INSERT INTO circuit ("circuitId", "name_x", "name_y", "location", "country", "lat", "lng")
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """, (circuit_id, circuit_id_json, name_y, location, country, lat, lng))
+#                     # Check if circuit exists in the database
+#                     cursor.execute('SELECT * FROM circuit WHERE "name_y" = %s', (name_y,))
+#                     result = cursor.fetchone()
+#                     if not result:
+#                         # Insert new circuit into the database
+#                         cursor.execute("""
+#                             INSERT INTO circuit ("circuitId", "name_x", "name_y", "location", "country", "lat", "lng")
+#                             VALUES (%s, %s, %s, %s, %s, %s, %s)
+#                         """, (circuit_id, circuit_id_json, name_y, location, country, lat, lng))
 
-                        # Commit changes to the database
-                        conn.commit()
+#                         # Commit changes to the database
+#                         conn.commit()
 
-                        circuit_id += 1
+#                         circuit_id += 1
 
-                        # Print additional details
-                        print("Inserted new circuit:", name_y)
+#                         # Print additional details
+#                         print("Inserted new circuit:", name_y)
 
-                # Continue processing next race data
-                print("Race number is", race_number)
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_drivers():
-    driver_Id=1000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_drivers():
+#     driver_Id=1000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/drivers.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/drivers.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'DriverTable' in data['MRData']:
-                drivers = data['MRData']['DriverTable']['Drivers']
+#             if 'MRData' in data and 'DriverTable' in data['MRData']:
+#                 drivers = data['MRData']['DriverTable']['Drivers']
 
-                if not drivers:  # Check if drivers data is empty
-                    print(f"No driver data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not drivers:  # Check if drivers data is empty
+#                     print(f"No driver data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
 
-                for driver_data in drivers:
+#                 for driver_data in drivers:
                     
-                    driver_ref = driver_data['driverId']
-                    number = driver_data['permanentNumber']
-                    code = driver_data['code']
-                    forename = driver_data['givenName']
-                    surname = driver_data['familyName']
-                    dob = driver_data['dateOfBirth']
-                    nationality = driver_data['nationality']
+#                     driver_ref = driver_data['driverId']
+#                     number = driver_data['permanentNumber']
+#                     code = driver_data['code']
+#                     forename = driver_data['givenName']
+#                     surname = driver_data['familyName']
+#                     dob = driver_data['dateOfBirth']
+#                     nationality = driver_data['nationality']
 
-                    # Check if driver exists in the database
-                    cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_ref,))
-                    result = cursor.fetchone()
-                    if not result:
-                        # Insert new driver into the database
-                        cursor.execute("""
-                            INSERT INTO driver ("driverId", "driverRef", "number", "code", "forename", "surname", "dob", "nationality")
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (driver_Id,driver_ref, number, code, forename, surname, dob, nationality))
+#                     # Check if driver exists in the database
+#                     cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_ref,))
+#                     result = cursor.fetchone()
+#                     if not result:
+#                         # Insert new driver into the database
+#                         cursor.execute("""
+#                             INSERT INTO driver ("driverId", "driverRef", "number", "code", "forename", "surname", "dob", "nationality")
+#                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+#                         """, (driver_Id,driver_ref, number, code, forename, surname, dob, nationality))
 
-                        # Commit changes to the database
-                        conn.commit()
+#                         # Commit changes to the database
+#                         conn.commit()
 
-                        driver_Id=driver_Id+1
+#                         driver_Id=driver_Id+1
 
-                        # Print additional details
-                        print("Inserted new driver:", forename, surname)
+#                         # Print additional details
+#                         print("Inserted new driver:", forename, surname)
 
-                # Continue processing next race data
-                print("Race number is", race_number)
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_constructors():
-    constructor_Id=1000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_constructors():
+#     constructor_Id=1000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/constructors.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/constructors.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'ConstructorTable' in data['MRData']:
-                constructors = data['MRData']['ConstructorTable']['Constructors']
+#             if 'MRData' in data and 'ConstructorTable' in data['MRData']:
+#                 constructors = data['MRData']['ConstructorTable']['Constructors']
 
-                if not constructors:  # Check if constructors data is empty
-                    print(f"No constructor data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not constructors:  # Check if constructors data is empty
+#                     print(f"No constructor data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
 
-                for constructor_data in constructors:
+#                 for constructor_data in constructors:
                     
-                    constructor_ref = constructor_data['constructorId']
-                    name = constructor_data['name']
-                    nationality = constructor_data['nationality']
+#                     constructor_ref = constructor_data['constructorId']
+#                     name = constructor_data['name']
+#                     nationality = constructor_data['nationality']
 
-                    # Check if constructor exists in the database
-                    cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_ref,))
-                    result = cursor.fetchone()
-                    if not result:
-                        # Insert new constructor into the database
-                        cursor.execute("""
-                            INSERT INTO constructor ("constructorId","constructorRef", "name", "nationality")
-                            VALUES (%s, %s, %s,%s)
-                        """, (constructor_Id,constructor_ref, name, nationality))
+#                     # Check if constructor exists in the database
+#                     cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_ref,))
+#                     result = cursor.fetchone()
+#                     if not result:
+#                         # Insert new constructor into the database
+#                         cursor.execute("""
+#                             INSERT INTO constructor ("constructorId","constructorRef", "name", "nationality")
+#                             VALUES (%s, %s, %s,%s)
+#                         """, (constructor_Id,constructor_ref, name, nationality))
 
-                        # Commit changes to the database
-                        conn.commit()
-                        constructor_Id=constructor_Id+1
+#                         # Commit changes to the database
+#                         conn.commit()
+#                         constructor_Id=constructor_Id+1
                         
 
-                        # Print additional details
-                        print("Inserted new constructor:", name)
+#                         # Print additional details
+#                         print("Inserted new constructor:", name)
 
-                # Continue processing next race data
-                print("Race number is", race_number)
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_racetable():
-    race_Id=5000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_racetable():
+#     race_Id=5000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
         
         
-        race_number = 1
+#         race_number = 1
        
         
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
+#             response = requests.get(url)
+#             data = response.json()
             
-            if 'MRData' in data and 'RaceTable' in data['MRData']:
-                race_table = data['MRData']['RaceTable']
-                race_data = race_table.get('Races', [])
+#             if 'MRData' in data and 'RaceTable' in data['MRData']:
+#                 race_table = data['MRData']['RaceTable']
+#                 race_data = race_table.get('Races', [])
 
-                if not race_data:  # Check if "Races" is empty
-                    print(f"No race data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not race_data:  # Check if "Races" is empty
+#                     print(f"No race data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
                 
-                # Extract additional details
-                season = race_table['season']
-                round_number = race_table['round']
-                race_date = race_data[0]['date']
-                race_time = race_data[0]['time']
-                circuit_name = race_data[0]['Circuit']['circuitName']
+#                 # Extract additional details
+#                 season = race_table['season']
+#                 round_number = race_table['round']
+#                 race_date = race_data[0]['date']
+#                 race_time = race_data[0]['time']
+#                 circuit_name = race_data[0]['Circuit']['circuitName']
 
-                print("Season:", season)
-                print("Round:", round_number)
-                print("Date:", race_date)
-                print("Time:", race_time)
-                print("Circuit name",circuit_name)
-                print("Race id je",race_Id)
+#                 print("Season:", season)
+#                 print("Round:", round_number)
+#                 print("Date:", race_date)
+#                 print("Time:", race_time)
+#                 print("Circuit name",circuit_name)
+#                 print("Race id je",race_Id)
                     
 
-                cursor.execute("SELECT * FROM circuit WHERE name_y = %s", (circuit_name,))
-                circuit_id = cursor.fetchone()
+#                 cursor.execute("SELECT * FROM circuit WHERE name_y = %s", (circuit_name,))
+#                 circuit_id = cursor.fetchone()
                 
-                if circuit_id:
-                    circuit_id = circuit_id[0]
+#                 if circuit_id:
+#                     circuit_id = circuit_id[0]
                     
 
-                    cursor.execute("""
-                            INSERT INTO race ("raceId", "circuitId", "year", "round", "date", "time")
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (
-                                race_Id,
-                                circuit_id,
-                                season,
-                                round_number,
-                                race_date,
-                                race_time
-                            ))
+#                     cursor.execute("""
+#                             INSERT INTO race ("raceId", "circuitId", "year", "round", "date", "time")
+#                             VALUES (%s, %s, %s, %s, %s, %s)
+#                         """, (
+#                                 race_Id,
+#                                 circuit_id,
+#                                 season,
+#                                 round_number,
+#                                 race_date,
+#                                 race_time
+#                             ))
                     
 
-                    # Commit changes to the database
+#                     # Commit changes to the database
                     
-                    conn.commit()
+#                     conn.commit()
 
-                    # Print additional details
-                    print("Season:", season)
-                    print("Round:", round_number)
-                    print("Date:", race_date)
-                    print("Time:", race_time)
-                    print("Circuit name",circuit_name)
+#                     # Print additional details
+#                     print("Season:", season)
+#                     print("Round:", round_number)
+#                     print("Date:", race_date)
+#                     print("Time:", race_time)
+#                     print("Circuit name",circuit_name)
                     
-                    # Continue processing race data
-                    print("Race number is", race_number)
-                    race_number += 1
-                    print("Race id is", race_Id)
-                    race_Id=race_Id+1
+#                     # Continue processing race data
+#                     print("Race number is", race_number)
+#                     race_number += 1
+#                     print("Race id is", race_Id)
+#                     race_Id=race_Id+1
                     
-                else:
-                    print("Circuit not found:", circuit_name)
-                    break
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
+#                 else:
+#                     print("Circuit not found:", circuit_name)
+#                     break
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
     
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_driverstandings():
-    driverStandings_id = 80000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_driverstandings():
+#     driverStandings_id = 80000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/driverStandings.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/driverStandings.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'StandingsTable' in data['MRData']:
-                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['DriverStandings']
+#             if 'MRData' in data and 'StandingsTable' in data['MRData']:
+#                 standings = data['MRData']['StandingsTable']['StandingsLists'][0]['DriverStandings']
 
-                if not standings:  # Check if standings data is empty
-                    print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not standings:  # Check if standings data is empty
+#                     print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
 
-                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+#                 cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
                 
-                race_id_result = cursor.fetchone()
-                if race_id_result:
-                    race_id = race_id_result[0]
-                    print("Race id je ",race_id)
-                else:
-                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
-                    break
+#                 race_id_result = cursor.fetchone()
+#                 if race_id_result:
+#                     race_id = race_id_result[0]
+#                     print("Race id je ",race_id)
+#                 else:
+#                     print(f"Race ID not found for race number {race_number}. Exiting loop.")
+#                     break
 
 
-                for driver_data in standings:
-                    driver_id = driver_data['Driver']['driverId']
-                    forename = driver_data['Driver']['givenName']
-                    surname = driver_data['Driver']['familyName']
-                    points = int(driver_data['points'])
-                    position = int(driver_data['position'])
-                    wins = int(driver_data['wins'])
+#                 for driver_data in standings:
+#                     driver_id = driver_data['Driver']['driverId']
+#                     forename = driver_data['Driver']['givenName']
+#                     surname = driver_data['Driver']['familyName']
+#                     points = int(driver_data['points'])
+#                     position = int(driver_data['position'])
+#                     wins = int(driver_data['wins'])
 
-                    # Fetch driverId from the database (case-sensitive)
-                    cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_id,))
-                    result = cursor.fetchone()
-                    if result:
-                        driver_id_from_db = result[0]
+#                     # Fetch driverId from the database (case-sensitive)
+#                     cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_id,))
+#                     result = cursor.fetchone()
+#                     if result:
+#                         driver_id_from_db = result[0]
 
-                        # Insert data into driverstandings table
-                        cursor.execute("""
-                            INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
-                            VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
-                        """, (driverStandings_id,race_id, driver_id_from_db, forename, surname, points, position, wins))
+#                         # Insert data into driverstandings table
+#                         cursor.execute("""
+#                             INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
+#                             VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
+#                         """, (driverStandings_id,race_id, driver_id_from_db, forename, surname, points, position, wins))
 
-                        # Commit changes to the database
-                        conn.commit()
+#                         # Commit changes to the database
+#                         conn.commit()
 
-                        # Print additional details
-                        print("Inserted driver standings for:", forename, surname)
-                        driverStandings_id += 1
-                    else:
-                        print("Driver not found in the database:", driver_id)
-                        continue
+#                         # Print additional details
+#                         print("Inserted driver standings for:", forename, surname)
+#                         driverStandings_id += 1
+#                     else:
+#                         print("Driver not found in the database:", driver_id)
+#                         continue
 
-                # Continue processing next race data
-                print("Race number is", race_number)
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_constructorstandings():
-    constructorStandings_id = 90000
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_constructorstandings():
+#     constructorStandings_id = 90000
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/constructorstandings.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/constructorstandings.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'StandingsTable' in data['MRData']:
-                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['ConstructorStandings']
+#             if 'MRData' in data and 'StandingsTable' in data['MRData']:
+#                 standings = data['MRData']['StandingsTable']['StandingsLists'][0]['ConstructorStandings']
 
-                if not standings:  # Check if standings data is empty
-                    print(f"No constructor standings data found for the given year and race number {race_number}. Exiting loop.")
-                    break
+#                 if not standings:  # Check if standings data is empty
+#                     print(f"No constructor standings data found for the given year and race number {race_number}. Exiting loop.")
+#                     break
 
 
-                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+#                 cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
                 
-                race_id_result = cursor.fetchone()
-                if race_id_result:
-                    race_id = race_id_result[0]
-                    print("Race id je ",race_id)
-                else:
-                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
-                    break
+#                 race_id_result = cursor.fetchone()
+#                 if race_id_result:
+#                     race_id = race_id_result[0]
+#                     print("Race id je ",race_id)
+#                 else:
+#                     print(f"Race ID not found for race number {race_number}. Exiting loop.")
+#                     break
             
 
-                for constructor_data in standings:
-                    constructor_id = constructor_data['Constructor']['constructorId']
-                    constructor_name = constructor_data['Constructor']['name']
-                    points = int(constructor_data['points'])
-                    position = int(constructor_data['position'])
-                    wins = int(constructor_data['wins'])
+#                 for constructor_data in standings:
+#                     constructor_id = constructor_data['Constructor']['constructorId']
+#                     constructor_name = constructor_data['Constructor']['name']
+#                     points = int(constructor_data['points'])
+#                     position = int(constructor_data['position'])
+#                     wins = int(constructor_data['wins'])
 
-                    # Fetch constructorId from the database (case-sensitive)
-                    cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_id,))
-                    result = cursor.fetchone()
-                    if result:
-                        constructor_id_from_db = result[0]
+#                     # Fetch constructorId from the database (case-sensitive)
+#                     cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_id,))
+#                     result = cursor.fetchone()
+#                     if result:
+#                         constructor_id_from_db = result[0]
 
-                        # Insert data into constructorstandings table
-                        cursor.execute("""
-                            INSERT INTO constructorstandings ("constructorStandingsId","raceId", "constructorId", "constructorName", "points", "position", "wins")
-                            VALUES (%s, %s, %s, %s, %s, %s,%s)
-                        """, (constructorStandings_id,race_id, constructor_id_from_db, constructor_name, points, position, wins))
+#                         # Insert data into constructorstandings table
+#                         cursor.execute("""
+#                             INSERT INTO constructorstandings ("constructorStandingsId","raceId", "constructorId", "constructorName", "points", "position", "wins")
+#                             VALUES (%s, %s, %s, %s, %s, %s,%s)
+#                         """, (constructorStandings_id,race_id, constructor_id_from_db, constructor_name, points, position, wins))
 
-                        # Commit changes to the database
-                        conn.commit()
+#                         # Commit changes to the database
+#                         conn.commit()
 
-                        # Print additional details
-                        print("Inserted constructor standings for:", constructor_name)
-                        constructorStandings_id += 1
-                    else:
-                        print("Constructor not found in the database:", constructor_id)
-                        continue
+#                         # Print additional details
+#                         print("Inserted constructor standings for:", constructor_name)
+#                         constructorStandings_id += 1
+#                     else:
+#                         print("Constructor not found in the database:", constructor_id)
+#                         continue
 
-                # Continue processing next race data
-                print("Race number is", race_number)
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def insert_race_results():
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def insert_race_results():
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        result_id = 30000
-        race_number = 1
+#         result_id = 30000
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'RaceTable' in data['MRData']:
-                race_data = data['MRData']['RaceTable']['Races'][0]
-                race_name = race_data['raceName']
-                race_date = race_data['date']
+#             if 'MRData' in data and 'RaceTable' in data['MRData']:
+#                 race_data = data['MRData']['RaceTable']['Races'][0]
+#                 race_name = race_data['raceName']
+#                 race_date = race_data['date']
 
-                # Extract race time if available
-                race_time = race_data['Results'][0]['Time'].get('time', None) if race_data['Results'] else None
+#                 # Extract race time if available
+#                 race_time = race_data['Results'][0]['Time'].get('time', None) if race_data['Results'] else None
 
-                circuit_id = race_data['Circuit']['circuitId']
+#                 circuit_id = race_data['Circuit']['circuitId']
 
-                # Get the race ID from the races database
-                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+#                 # Get the race ID from the races database
+#                 cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
 
-                race_id_result = cursor.fetchone()
-                if race_id_result:
-                    race_id = race_id_result[0]
-                    print("Race id je ", race_id)
-                else:
-                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
-                    break
+#                 race_id_result = cursor.fetchone()
+#                 if race_id_result:
+#                     race_id = race_id_result[0]
+#                     print("Race id je ", race_id)
+#                 else:
+#                     print(f"Race ID not found for race number {race_number}. Exiting loop.")
+#                     break
 
-                results = race_data['Results']
+#                 results = race_data['Results']
 
-                for result in results:
-                    driver_id_json = result['Driver']['driverId']
-                    constructor_id_json = result['Constructor']['constructorId']
-                    car_number = result['number']
-                    position_order = result['grid']
-                    points = result['points']
-                    laps = result['laps']
-                    status = result['status']
+#                 for result in results:
+#                     driver_id_json = result['Driver']['driverId']
+#                     constructor_id_json = result['Constructor']['constructorId']
+#                     car_number = result['number']
+#                     position_order = result['grid']
+#                     points = result['points']
+#                     laps = result['laps']
+#                     status = result['status']
 
-                    # Get driver ID from the database
-                    cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id_json,))
-                    driver_id_result = cursor.fetchone()
-                    if driver_id_result:
-                        driver_id = driver_id_result[0]
-                        print("Driver id je", driver_id)
-                    else:
-                        print("Driver not found in the database:", driver_id_json)
-                        continue
+#                     # Get driver ID from the database
+#                     cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id_json,))
+#                     driver_id_result = cursor.fetchone()
+#                     if driver_id_result:
+#                         driver_id = driver_id_result[0]
+#                         print("Driver id je", driver_id)
+#                     else:
+#                         print("Driver not found in the database:", driver_id_json)
+#                         continue
 
-                    # Get constructor ID from the database
-                    cursor.execute('SELECT "constructorId" FROM constructor WHERE "constructorRef" = %s', (constructor_id_json,))
-                    constructor_id_result = cursor.fetchone()
-                    if constructor_id_result:
-                        constructor_id = constructor_id_result[0]
-                    else:
-                        print("Constructor not found in the database:", constructor_id_json)
-                        continue
+#                     # Get constructor ID from the database
+#                     cursor.execute('SELECT "constructorId" FROM constructor WHERE "constructorRef" = %s', (constructor_id_json,))
+#                     constructor_id_result = cursor.fetchone()
+#                     if constructor_id_result:
+#                         constructor_id = constructor_id_result[0]
+#                     else:
+#                         print("Constructor not found in the database:", constructor_id_json)
+#                         continue
 
-                    # Get driver standings ID
-                    cursor.execute(
-                        'SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s',
-                        (race_id, driver_id))
-                    driver_standings_id_result = cursor.fetchone()
-                    if driver_standings_id_result:
-                        driver_standings_id = driver_standings_id_result[0]
-                    else:
-                        print("Driver standings ID not found in the database.")
-                        continue
+#                     # Get driver standings ID
+#                     cursor.execute(
+#                         'SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s',
+#                         (race_id, driver_id))
+#                     driver_standings_id_result = cursor.fetchone()
+#                     if driver_standings_id_result:
+#                         driver_standings_id = driver_standings_id_result[0]
+#                     else:
+#                         print("Driver standings ID not found in the database.")
+#                         continue
 
-                    # Get constructor standings ID
-                    cursor.execute('SELECT "constructorStandingsId" FROM constructorstandings WHERE "raceId" = %s AND "constructorId" = %s', (race_id, constructor_id))
-                    constructor_standings_id_result = cursor.fetchone()
-                    if constructor_standings_id_result:
-                        constructor_standings_id = constructor_standings_id_result[0]
-                    else:
-                        print("Constructor standings ID not found in the database.")
-                        continue
+#                     # Get constructor standings ID
+#                     cursor.execute('SELECT "constructorStandingsId" FROM constructorstandings WHERE "raceId" = %s AND "constructorId" = %s', (race_id, constructor_id))
+#                     constructor_standings_id_result = cursor.fetchone()
+#                     if constructor_standings_id_result:
+#                         constructor_standings_id = constructor_standings_id_result[0]
+#                     else:
+#                         print("Constructor standings ID not found in the database.")
+#                         continue
 
-                    # Extract fastest lap details or set to None if 'FastestLap' object is missing
-                    fastest_lap = result.get('FastestLap', None)
-                    if fastest_lap:
-                        fastest_lap_lap = fastest_lap.get('lap', None)
-                        rank_of_fastest_lap = fastest_lap.get('rank', None)
-                        fastest_lap_time = fastest_lap['Time'].get('time', None)
-                        fastest_lap_speed = fastest_lap['AverageSpeed'].get('speed', None)
-                    else:
-                        fastest_lap_lap = rank_of_fastest_lap = fastest_lap_time = fastest_lap_speed = None
+#                     # Extract fastest lap details or set to None if 'FastestLap' object is missing
+#                     fastest_lap = result.get('FastestLap', None)
+#                     if fastest_lap:
+#                         fastest_lap_lap = fastest_lap.get('lap', None)
+#                         rank_of_fastest_lap = fastest_lap.get('rank', None)
+#                         fastest_lap_time = fastest_lap['Time'].get('time', None)
+#                         fastest_lap_speed = fastest_lap['AverageSpeed'].get('speed', None)
+#                     else:
+#                         fastest_lap_lap = rank_of_fastest_lap = fastest_lap_time = fastest_lap_speed = None
 
-                    # Insert into results table
-                    cursor.execute("""
-                        INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (result_id, race_id, driver_id, constructor_id, car_number, position_order, points, laps, race_time, fastest_lap_lap, rank_of_fastest_lap, fastest_lap_time, fastest_lap_speed, result['position'], driver_standings_id, constructor_standings_id, status))
+#                     # Insert into results table
+#                     cursor.execute("""
+#                         INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
+#                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#                     """, (result_id, race_id, driver_id, constructor_id, car_number, position_order, points, laps, race_time, fastest_lap_lap, rank_of_fastest_lap, fastest_lap_time, fastest_lap_speed, result['position'], driver_standings_id, constructor_standings_id, status))
 
-                    # Commit changes to the database
-                    conn.commit()
+#                     # Commit changes to the database
+#                     conn.commit()
 
-                    result_id = result_id + 1
+#                     result_id = result_id + 1
 
-                    print("Inserted race result for:", race_name, "Driver:", result['Driver']['givenName'], result['Driver']['familyName'])
-                race_number = race_number + 1
-                # Continue processing next race data
-                print("Race number is", race_number)
-                print("Result_id is", result_id)
+#                     print("Inserted race result for:", race_name, "Driver:", result['Driver']['givenName'], result['Driver']['familyName'])
+#                 race_number = race_number + 1
+#                 # Continue processing next race data
+#                 print("Race number is", race_number)
+#                 print("Result_id is", result_id)
 
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_lapsinfo():
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_lapsinfo():
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            lap_number_incr = 1
-            while True:
-                url = f"http://ergast.com/api/f1/2024/{race_number}/laps/{lap_number_incr}.json"
-                response = requests.get(url)
-                data = response.json()
+#         while True:
+#             lap_number_incr = 1
+#             while True:
+#                 url = f"http://ergast.com/api/f1/2024/{race_number}/laps/{lap_number_incr}.json"
+#                 response = requests.get(url)
+#                 data = response.json()
 
-                if 'MRData' in data and 'RaceTable' in data['MRData']:
-                    race_data = data['MRData']['RaceTable']['Races'][0]
-                    season = race_data['season']
-                    race_round = race_data['round']
-                    race_id = None
+#                 if 'MRData' in data and 'RaceTable' in data['MRData']:
+#                     race_data = data['MRData']['RaceTable']['Races'][0]
+#                     season = race_data['season']
+#                     race_round = race_data['round']
+#                     race_id = None
 
-                    # Get raceId from the race table
-                    cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
-                    race_id_result = cursor.fetchone()
-                    if race_id_result:
-                        race_id = race_id_result[0]
-                    else:
-                        print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
-                        break
+#                     # Get raceId from the race table
+#                     cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
+#                     race_id_result = cursor.fetchone()
+#                     if race_id_result:
+#                         race_id = race_id_result[0]
+#                     else:
+#                         print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
+#                         break
 
-                    laps = race_data['Laps']
-                    for lap_data in laps:
-                        lap_number = lap_data['number']
+#                     laps = race_data['Laps']
+#                     for lap_data in laps:
+#                         lap_number = lap_data['number']
 
-                        for timing in lap_data['Timings']:
-                            driver_id = timing['driverId']
-                            position = timing['position']
-                            lap_time = timing['time']
+#                         for timing in lap_data['Timings']:
+#                             driver_id = timing['driverId']
+#                             position = timing['position']
+#                             lap_time = timing['time']
 
-                            # Get driver info from the driver table
-                            cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
-                            driver_info = cursor.fetchone()
-                            if driver_info:
-                                print("Info o driveru je",driver_info)
-                                driver_id_db, forename, surname = driver_info
-                            else:
-                                print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
-                                continue
+#                             # Get driver info from the driver table
+#                             cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
+#                             driver_info = cursor.fetchone()
+#                             if driver_info:
+#                                 print("Info o driveru je",driver_info)
+#                                 driver_id_db, forename, surname = driver_info
+#                             else:
+#                                 print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
+#                                 continue
 
-                            # Get resultId from the results table
-                            cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id_db))
-                            result_id_result = cursor.fetchone()
-                            if result_id_result:
-                                result_id = result_id_result[0]
-                                print("Result id je",result_id)
-                            else:
-                                print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
-                                continue
+#                             # Get resultId from the results table
+#                             cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id_db))
+#                             result_id_result = cursor.fetchone()
+#                             if result_id_result:
+#                                 result_id = result_id_result[0]
+#                                 print("Result id je",result_id)
+#                             else:
+#                                 print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
+#                                 continue
 
-                            # Insert lap info into the lapsinfo table
-                            cursor.execute("""
-                                INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            """, (result_id, race_id, driver_id_db, forename, surname, lap_number, position, lap_time))
+#                             # Insert lap info into the lapsinfo table
+#                             cursor.execute("""
+#                                 INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
+#                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+#                             """, (result_id, race_id, driver_id_db, forename, surname, lap_number, position, lap_time))
 
-                            # Commit changes to the database
-                            conn.commit()
+#                             # Commit changes to the database
+#                             conn.commit()
 
-                    # Increment lap number for the next iteration
-                    lap_number_incr += 1
-                else:
-                    print("Failed to fetch data from the API.")
-                    break
+#                     # Increment lap number for the next iteration
+#                     lap_number_incr += 1
+#                 else:
+#                     print("Failed to fetch data from the API.")
+#                     break
 
-            # Increment race number for the next iteration
-            race_number += 1
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#             # Increment race number for the next iteration
+#             race_number += 1
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_qualificationorder():
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+# def scraping_data_and_loading_qualificationorder():
+#     try:
+#         conn = psycopg2.connect(
+#             dbname="f1_database",
+#             user="airflow",
+#             password="airflow",
+#             host="praksa_postgres_1",
+#             port="5432"
+#         )
+#         cursor = conn.cursor()
 
-        race_number = 1
+#         race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/qualifying.json"
-            response = requests.get(url)
-            data = response.json()
+#         while True:
+#             url = f"http://ergast.com/api/f1/2024/{race_number}/qualifying.json"
+#             response = requests.get(url)
+#             data = response.json()
 
-            if 'MRData' in data and 'RaceTable' in data['MRData']:
-                race_data = data['MRData']['RaceTable']['Races'][0]
-                season = race_data['season']
-                race_round = race_data['round']
-                race_id = None
+#             if 'MRData' in data and 'RaceTable' in data['MRData']:
+#                 race_data = data['MRData']['RaceTable']['Races'][0]
+#                 season = race_data['season']
+#                 race_round = race_data['round']
+#                 race_id = None
 
-                # Get raceId from the race table
-                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
-                race_id_result = cursor.fetchone()
-                if race_id_result:
-                    race_id = race_id_result[0]
-                else:
-                    print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
-                    break
+#                 # Get raceId from the race table
+#                 cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
+#                 race_id_result = cursor.fetchone()
+#                 if race_id_result:
+#                     race_id = race_id_result[0]
+#                 else:
+#                     print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
+#                     break
 
-                qualifying_results = race_data.get('QualifyingResults', [])
-                for result_data in qualifying_results:
-                    driver_data = result_data['Driver']
-                    constructor_data = result_data['Constructor']
-                    driver_id = driver_data['driverId']
-                    forename = driver_data['givenName']
-                    surname = driver_data['familyName']
-                    constructor_name = constructor_data['name']
-                    grid = result_data['position']
-                    year = season
-                    name_x = race_data['raceName']
+#                 qualifying_results = race_data.get('QualifyingResults', [])
+#                 for result_data in qualifying_results:
+#                     driver_data = result_data['Driver']
+#                     constructor_data = result_data['Constructor']
+#                     driver_id = driver_data['driverId']
+#                     forename = driver_data['givenName']
+#                     surname = driver_data['familyName']
+#                     constructor_name = constructor_data['name']
+#                     grid = result_data['position']
+#                     year = season
+#                     name_x = race_data['raceName']
 
-                    # Get driverId from the driver table
-                    cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id,))
-                    driver_id_result = cursor.fetchone()
-                    if driver_id_result:
-                        driver_id_db = driver_id_result[0]
-                    else:
-                        print(f"Driver ID not found in the database for driverId {driver_id}. Skipping.")
-                        continue
+#                     # Get driverId from the driver table
+#                     cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id,))
+#                     driver_id_result = cursor.fetchone()
+#                     if driver_id_result:
+#                         driver_id_db = driver_id_result[0]
+#                     else:
+#                         print(f"Driver ID not found in the database for driverId {driver_id}. Skipping.")
+#                         continue
 
-                    # Insert qualification order info into the qualificationorder table
-                    cursor.execute("""
-                        INSERT INTO qualificationorder ("raceId", "driverId", "forename", "surname", "constructorName", "grid", "year", "name_x")
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (race_id, driver_id_db, forename, surname, constructor_name, grid, year, name_x))
+#                     # Insert qualification order info into the qualificationorder table
+#                     cursor.execute("""
+#                         INSERT INTO qualificationorder ("raceId", "driverId", "forename", "surname", "constructorName", "grid", "year", "name_x")
+#                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+#                     """, (race_id, driver_id_db, forename, surname, constructor_name, grid, year, name_x))
 
-                    # Commit changes to the database
-                    conn.commit()
+#                     # Commit changes to the database
+#                     conn.commit()
 
-                # Increment race number for the next iteration
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+#                 # Increment race number for the next iteration
+#                 race_number += 1
+#             else:
+#                 print("Failed to fetch data from the API.")
+#                 break
+#     except Exception as error:
+#         print("Error:", error)
+#     finally:
+#         # Closing database connection
+#         if conn:
+#             cursor.close()
+#             conn.close()
+#             print("PostgreSQL connection is closed")
 
-def scraping_data_and_loading_pitstops():
+# def scraping_data_and_loading_pitstops():
     try:
         conn = psycopg2.connect(
             dbname="f1_database",
@@ -1776,8 +1776,6 @@ def scraping_data_and_loading_pitstops():
             conn.close()
             print("PostgreSQL connection is closed")
 
-
-
 with DAG('etlPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
@@ -1797,71 +1795,65 @@ with DAG('etlPipeline',
     python_callable=read_and_create_dicts,
     
     )
-    insert_scraped_data_task = PythonOperator(
-    task_id='insert_scraped_data_task',
-    python_callable=scraping_data_and_loading_racetable,
+    # insert_scraped_data_task = PythonOperator(
+    # task_id='insert_scraped_data_task',
+    # python_callable=scraping_data_and_loading_racetable,
     
-    )
-    insert_scraped_driverstandings_task = PythonOperator(
-    task_id='insert_scraped_driverstandings_task',
-    python_callable=scraping_data_and_loading_driverstandings,
+    # )
+    # insert_scraped_driverstandings_task = PythonOperator(
+    # task_id='insert_scraped_driverstandings_task',
+    # python_callable=scraping_data_and_loading_driverstandings,
     
-    )
-    insert_scraped_constructorstandings_task = PythonOperator(
-    task_id='insert_scraped_constructorstandings_task',
-    python_callable=scraping_data_and_loading_constructorstandings,
+    # )
+    # insert_scraped_constructorstandings_task = PythonOperator(
+    # task_id='insert_scraped_constructorstandings_task',
+    # python_callable=scraping_data_and_loading_constructorstandings,
     
-    )
+    # )
 
-    insert_scraped_drivers_task = PythonOperator(
-    task_id='insert_scraped_drivers_task',
-    python_callable=scraping_data_and_loading_drivers,
+    # insert_scraped_drivers_task = PythonOperator(
+    # task_id='insert_scraped_drivers_task',
+    # python_callable=scraping_data_and_loading_drivers,
     
-    )
+    # )
 
-    insert_scraped_constructors_task = PythonOperator(
-    task_id='insert_scraped_constructors_task',
-    python_callable=scraping_data_and_loading_constructors,
+    # insert_scraped_constructors_task = PythonOperator(
+    # task_id='insert_scraped_constructors_task',
+    # python_callable=scraping_data_and_loading_constructors,
     
-    )
+    # )
 
-    insert_scraped_circuits_task = PythonOperator(
-    task_id='insert_scraped_circuits_task',
-    python_callable=scraping_data_and_loading_circuits,
+    # insert_scraped_circuits_task = PythonOperator(
+    # task_id='insert_scraped_circuits_task',
+    # python_callable=scraping_data_and_loading_circuits,
     
-    )
+    # )
 
-    insert_scraped_results_task = PythonOperator(
-    task_id='insert_scraped_results_task',
-    python_callable=insert_race_results,
+    # insert_scraped_results_task = PythonOperator(
+    # task_id='insert_scraped_results_task',
+    # python_callable=insert_race_results,
     
-    )
+    # )
 
-    insert_scraped_lapsinfo_task = PythonOperator(
-    task_id='insert_scraped_lapsinfo_task',
-    python_callable=scraping_data_and_loading_lapsinfo,
+    # insert_scraped_lapsinfo_task = PythonOperator(
+    # task_id='insert_scraped_lapsinfo_task',
+    # python_callable=scraping_data_and_loading_lapsinfo,
     
-    )
-    insert_scraped_pitstop_task = PythonOperator(
-    task_id='insert_scraped_pitstop_task',
-    python_callable=scraping_data_and_loading_pitstops,
+    # )
+    # insert_scraped_pitstop_task = PythonOperator(
+    # task_id='insert_scraped_pitstop_task',
+    # python_callable=scraping_data_and_loading_pitstops,
     
-    )
+    # )
 
-    insert_scraped_qualificationOrder_task = PythonOperator(
-    task_id='insert_scraped_qualificationOrder_task',
-    python_callable=scraping_data_and_loading_qualificationorder,
+    # insert_scraped_qualificationOrder_task = PythonOperator(
+    # task_id='insert_scraped_qualificationOrder_task',
+    # python_callable=scraping_data_and_loading_qualificationorder,
     
-    )
+    # )
 
-    
-
-
-
-
-
-
-
+ 
     # Defining order in which airflow tasks will be executed
 
-    drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task,insert_scraped_data_task] >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> [insert_scraped_lapsinfo_task,insert_scraped_pitstop_task,insert_scraped_qualificationOrder_task]
+    # drop_tables_task >> create_tables_task >> insert_data_task >> insert_scraped_circuits_task >> [insert_scraped_drivers_task,insert_scraped_constructors_task,insert_scraped_data_task] >> insert_scraped_driverstandings_task >> insert_scraped_constructorstandings_task >> insert_scraped_results_task >> [insert_scraped_lapsinfo_task,insert_scraped_pitstop_task,insert_scraped_qualificationOrder_task]
+    drop_tables_task >> create_tables_task >> insert_data_task
