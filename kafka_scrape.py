@@ -2,7 +2,7 @@ import requests
 from kafka import KafkaProducer
 import json
 
-def scraping_data_and_publishing_to_kafka(producer):
+def scraping_circuits_and_publishing_to_kafka(producer):
     circuit_id = 1000
     try:
         race_number = 1
@@ -38,11 +38,64 @@ def scraping_data_and_publishing_to_kafka(producer):
                     }
 
                     # Publish circuit data to Kafka
-                    producer.send('circuit_data_topic', value=circuit)
+                    producer.send('data_topic', {"type":"circuit","data":circuit})
                     print("Published circuit data to Kafka:", name_y)
 
                     # Increment circuit ID
                     circuit_id += 1
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+
+def scraping_drivers_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/drivers.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'DriverTable' in data['MRData']:
+                drivers = data['MRData']['DriverTable']['Drivers']
+
+                if not drivers:  # Check if drivers data is empty
+                    print(f"No driver data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                for driver_data in drivers:
+                    
+                    driver_ref = driver_data['driverId']
+                    number = driver_data['permanentNumber']
+                    code = driver_data['code']
+                    forename = driver_data['givenName']
+                    surname = driver_data['familyName']
+                    dob = driver_data['dateOfBirth']
+                    nationality = driver_data['nationality']
+
+                    # Create a dictionary representing the racer data
+                    driver = {
+                        "driverRef":driver_ref,
+                        "number":number,
+                        "code":code,
+                        "forename":forename,
+                        "surname":surname,
+                        "dob":dob,
+                        "nationality":nationality
+                    }
+
+                    # Publish circuit data to Kafka
+                    producer.send('data_topic', value={"type":"driver","data":driver})
+                    print("Published driver data to Kafka:", driver)
+
+                    
+                   
 
                 # Continue processing next race data
                 print("Race number is", race_number)
@@ -58,4 +111,5 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092',
                          value_serializer=lambda x: json.dumps(x).encode('utf-8'))
 
 # Call the function to scrape data and publish to Kafka
-scraping_data_and_publishing_to_kafka(producer)
+scraping_circuits_and_publishing_to_kafka(producer)
+scraping_drivers_and_publishing_to_kafka(producer)
