@@ -19,6 +19,9 @@ def insert_data(consumer):
     constructor_Id = 300
     race_number = 1
     race_Id = 1500
+    driverStandings_id=80000
+    constructorStandings_id=30000
+    result_id=30000
     
     try:
         conn = psycopg2.connect(
@@ -206,6 +209,195 @@ def insert_data(consumer):
                         # Print additional details
                         print("Inserted new race:", race_Id)
                         race_Id=race_Id+1
+            # If the type of message is driverStandings
+            if message.value['type']=="driverStandings":  
+                print("USLO U DRIVER-STANDINGS")
+                
+                message_data = message.value['data']
+
+                driver_id= message_data['driverRef']
+                forename = message_data['forename']
+                surname = message_data['surname']
+                points = message_data['points']
+                position = message_data['position']
+                wins = message_data['wins']
+                race_number=message_data['race_number']
+
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+                
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id = race_id_result[0]
+                    print("Race id je ",race_id)
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+                
+
+
+
+                # Fetch driverId from the database (case-sensitive)
+                cursor.execute('SELECT * FROM driver WHERE "driverRef" = %s', (driver_id,))
+                result = cursor.fetchone()
+                if result:
+                    driver_id_from_db = result[0]
+
+                    # Insert data into driverstandings table
+                    cursor.execute("""
+                        INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
+                        VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
+                    """, (driverStandings_id,race_id, driver_id_from_db, forename, surname, points, position, wins))
+
+                    # Commit changes to the database
+                    conn.commit()
+
+                    # Print additional details
+                    print("Inserted driver standings for:", forename, surname)
+                    driverStandings_id += 1
+                else:
+                    print("Driver not found in the database:", driver_id)
+                    continue
+
+            if message.value['type']=="constructorStandings":  
+                print("USLO U CONSTRUCTOR-STANDINGS")
+                
+                message_data = message.value['data']
+
+                constructor_id= message_data['constructorRef']
+                name = message_data['name']
+                points = message_data['points']
+                position = message_data['position']
+                wins = message_data['wins']
+                race_number=message_data['race_number']
+
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+                
+                race_id_result = cursor.fetchone()
+                
+                if race_id_result:
+                    race_id = race_id_result[0]
+                    print("Race id je ",race_id)
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+                
+
+
+
+                # Fetch driverId from the database (case-sensitive)
+                cursor.execute('SELECT * FROM constructor WHERE "constructorRef" = %s', (constructor_id,))
+                result = cursor.fetchone()
+                print("Rezultat pretrage je",result)
+                if result:
+                    constructor_id_from_db = result[0]
+
+                    # Insert data into driverstandings table
+                    cursor.execute("""
+                        INSERT INTO constructorstandings ("constructorStandingsId","raceId", "constructorId", "constructorName","points", "position", "wins")
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (constructorStandings_id,race_id, constructor_id_from_db, name, points, position, wins))
+
+                    # Commit changes to the database
+                    conn.commit()
+
+                    # Print additional details
+                    print("Inserted constructor standings for:", name)
+                    constructorStandings_id += 1
+                else:
+                    print("Driver not found in the database:", driver_id)
+                    continue            
+
+            if message.value['type']=="results":  
+                print("USLO U RESULTS")
+                
+                message_data = message.value['data']
+                driverId= message_data['driverId']
+                constructorId=message_data['constructorId']
+                carNumber=message_data['car_number']
+                positionOrder=message_data['positionOrder']
+                points=message_data['points']
+                laps=message_data['laps']
+                status=message_data['status']
+                fastestLap=message_data['fastestLap']
+                rankOfFastestLap=message_data['rankOfFastestLap']
+                fastestLapTime=message_data['fastestLapTime']
+                fastestLapSpeed=message_data['fastestLapSpeed']
+                time=message_data['time']
+                circuitId=message_data['circuitId']
+                raceName=message_data['raceName']
+                raceDate=message_data['raceDate']
+                race_number=message_data['race_number']
+                position=message_data['position']
+
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", race_number))
+
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id_map = race_id_result[0]
+                    print("Race id je ", race_id_map)
+                else:
+                    print(f"Race ID not found for race number {race_number}. Exiting loop.")
+                    break
+
+               
+
+                
+                # Get driver ID from the database
+                cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driverId,))
+                driver_id_result = cursor.fetchone()
+                if driver_id_result:
+                    driver_id_map = driver_id_result[0]
+                    print("Driver id je", driver_id_map)
+                else:
+                    print("Driver not found in the database:", driver_id_map)
+                
+
+                # Get constructor ID from the database
+                cursor.execute('SELECT "constructorId" FROM constructor WHERE "constructorRef" = %s', (constructorId,))
+                constructor_id_result = cursor.fetchone()
+                if constructor_id_result:
+                    constructor_id_map = constructor_id_result[0]
+                    print("Constructor id is",constructor_id_map)
+                else:
+                    print("Constructor not found in the database:", constructor_id_map)
+                   
+
+                # Get driver standings ID
+                cursor.execute(
+                    'SELECT "driverStandingsId" FROM driverstandings WHERE "raceId" = %s AND "driverId" = %s',
+                    (race_id_map, driver_id_map))
+                driver_standings_id_result = cursor.fetchone()
+                if driver_standings_id_result:
+                    driver_standings_id_map = driver_standings_id_result[0]
+                    print("Driver standings id is",driver_standings_id_map)
+                else:
+                    print("Driver standings ID not found in the database.")
+                    
+
+                # Get constructor standings ID
+                cursor.execute('SELECT "constructorStandingsId" FROM constructorstandings WHERE "raceId" = %s AND "constructorId" = %s', (race_id_map, constructor_id_map))
+                constructor_standings_id_result = cursor.fetchone()
+                if constructor_standings_id_result:
+                    constructor_standings_id_map = constructor_standings_id_result[0]
+                    print("Constructor standings id is",constructor_standings_id_map)
+                else:
+                    print("Constructor standings ID not found in the database.")
+                    continue
+
+                # Extract fastest lap details or set to None if 'FastestLap' object is missing
+               
+
+                # Insert into results table
+                cursor.execute("""
+                    INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (result_id, race_id_map, driver_id_map, constructor_id_map, carNumber, positionOrder, points, laps, time, fastestLap, rankOfFastestLap, fastestLapTime, fastestLapSpeed, position, driver_standings_id_map, constructor_standings_id_map, status))
+
+                # Commit changes to the database
+                conn.commit()
+                print("Rezultat sa id-em",result_id)
+                result_id = result_id + 1
+
                 
 
     except Exception as error:

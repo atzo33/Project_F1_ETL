@@ -210,6 +210,206 @@ def scraping_race_and_publishing_to_kafka(producer):
                 
     except Exception as error:
         print("Error:", error)
+
+def scraping_driverstandings_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/driverStandings.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'StandingsTable' in data['MRData']:
+                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['DriverStandings']
+
+                if not standings:  # Check if standings data is empty
+                    print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                
+                
+                
+                
+
+                for driver_data in standings:
+                    driver_id = driver_data['Driver']['driverId']
+                    forename = driver_data['Driver']['givenName']
+                    surname = driver_data['Driver']['familyName']
+                    points = int(driver_data['points'])
+                    position = int(driver_data['position'])
+                    wins = int(driver_data['wins'])
+
+                    # Fetch driverId from the database (case-sensitive)
+                    
+                    driverStandings = {
+                    "driverRef": driver_id,
+                    "forename": forename,
+                    "surname": surname,
+                    "points": points,
+                    "position": position,
+                    "wins": wins,
+                    "race_number":race_number
+                   
+                    }
+
+                    producer.send('data_topic', {"type":"driverStandings","data":driverStandings},partition=0)
+                    producer.flush()
+                    # time.sleep(0.01)
+                    print("Published constructor data to Kafka:", driverStandings)
+                    
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+
+def scraping_constructorstandings_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/constructorstandings.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'StandingsTable' in data['MRData']:
+                standings = data['MRData']['StandingsTable']['StandingsLists'][0]['ConstructorStandings']
+
+                if not standings:  # Check if standings data is empty
+                    print(f"No driver standings data found for the given year and race number {race_number}. Exiting loop.")
+                    break
+
+                
+                
+                
+                
+
+                for constructor_data in standings:
+                    constructor_id = constructor_data['Constructor']['constructorId']
+                    constructor_name = constructor_data['Constructor']['name']
+                    points = int(constructor_data['points'])
+                    position = int(constructor_data['position'])
+                    wins = int(constructor_data['wins'])
+
+                    # Fetch driverId from the database (case-sensitive)
+                    
+                    constructorStandings = {
+                    "constructorRef": constructor_id,
+                    "name": constructor_name,
+                    "points": points,
+                    "position": position,
+                    "wins": wins,
+                    "race_number":race_number
+                   
+                    }
+
+                    producer.send('data_topic', {"type":"constructorStandings","data":constructorStandings},partition=0)
+                    producer.flush()
+                    # time.sleep(0.01)
+                    print("Published constructor data to Kafka:", constructorStandings)
+                    
+
+                # Continue processing next race data
+                print("Race number is", race_number)
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+
+def scraping_results_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/results.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_data = data['MRData']['RaceTable']['Races'][0]
+                race_name = race_data['raceName']
+                race_date = race_data['date']
+
+                # Extract race time if available
+                
+
+                circuit_id = race_data['Circuit']['circuitId']
+
+                # Get the race ID from the races database
+               
+                results = race_data['Results']
+                # race_time = result['Time'].get('time', None) if race_data['Results'] else None
+                # print("rezultati su",results)
+                for result in results:
+                    race_time = result['Time'].get('time', None) if 'Time' in result else None
+                    driver_id_json = result['Driver']['driverId']
+                    constructor_id_json = result['Constructor']['constructorId']
+                    car_number = result['number']
+                    position_order = result['grid']
+                    position=result['position']
+                    points = result['points']
+                    laps = result['laps']
+                    status = result['status']
+
+                    
+                    # Extract fastest lap details or set to None if 'FastestLap' object is missing
+                    fastest_lap = result.get('FastestLap', None)
+                    if fastest_lap:
+                        fastest_lap_lap = fastest_lap.get('lap', None)
+                        rank_of_fastest_lap = fastest_lap.get('rank', None)
+                        fastest_lap_time = fastest_lap['Time'].get('time', None)
+                        fastest_lap_speed = fastest_lap['AverageSpeed'].get('speed', None)
+                    else:
+                        fastest_lap_lap = rank_of_fastest_lap = fastest_lap_time = fastest_lap_speed = None
+
+                    
+                    results={
+                        "driverId":driver_id_json,
+                        "constructorId":constructor_id_json,
+                        "car_number":car_number,
+                        "positionOrder":position_order,
+                        "points":points,
+                        "laps":laps,
+                        "status":status,
+                        "fastestLap":fastest_lap_lap,
+                        "rankOfFastestLap":rank_of_fastest_lap,
+                        "fastestLapTime":fastest_lap_time,
+                        "fastestLapSpeed":fastest_lap_speed,
+                        "time":race_time,
+                        "circuitId":circuit_id,
+                        "raceName":race_name,
+                        "raceDate":race_date,
+                        "race_number":race_number,
+                        "position":position
+                    }
+
+                    producer.send('data_topic', {"type":"results","data":results},partition=0)
+                    print("Race time is ",race_time)
+                    producer.flush()
+
+                    # Commit changes to the database
+                    
+
+                 
+
+                   
+                race_number = race_number + 1
+                # Continue processing next race data
+                print("Race number is", race_number)
+               
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+        
 # Initialize Kafka producer
 producer = KafkaProducer(bootstrap_servers='localhost:9092',
                          value_serializer=lambda x: json.dumps(x).encode('utf-8'))
@@ -218,4 +418,7 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092',
 # scraping_circuits_and_publishing_to_kafka(producer)
 # scraping_drivers_and_publishing_to_kafka(producer)
 # scraping_constructors_and_publishing_to_kafka(producer)
-scraping_race_and_publishing_to_kafka(producer)
+# scraping_race_and_publishing_to_kafka(producer)
+# scraping_driverstandings_and_publishing_to_kafka(producer)
+# scraping_constructorstandings_and_publishing_to_kafka(producer)
+scraping_results_and_publishing_to_kafka(producer)
