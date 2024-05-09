@@ -73,8 +73,6 @@ def insert_data(consumer):
                 # Continue processing next race data
                 print("Race number is", race_number)
                 race_number += 1
-
-
             #If type of message is driver    
             if message.value['type']=="driver":  
                 print("USLO U DRIVER")
@@ -258,7 +256,7 @@ def insert_data(consumer):
                 else:
                     print("Driver not found in the database:", driver_id)
                     continue
-
+            # If message is constructorStandings
             if message.value['type']=="constructorStandings":  
                 print("USLO U CONSTRUCTOR-STANDINGS")
                 
@@ -307,7 +305,7 @@ def insert_data(consumer):
                 else:
                     print("Driver not found in the database:", driver_id)
                     continue            
-
+              # If message is results         
             if message.value['type']=="results":  
                 print("USLO U RESULTS")
                 
@@ -398,7 +396,7 @@ def insert_data(consumer):
                 conn.commit()
                 print("Rezultat sa id-em",result_id)
                 result_id = result_id + 1
-
+            # If message is qualificationOrder
             if message.value['type']=="qualificationOrder":  
                 # print("USLO U QUALIFICATION ORDER")
                 
@@ -445,7 +443,7 @@ def insert_data(consumer):
                 # Commit changes to the database
                 conn.commit()
 
-                    
+                #if message is pitstops   
             if message.value['type']=="pitstops":  
                 # print("USLO U PITSTOPS")
                 
@@ -498,8 +496,59 @@ def insert_data(consumer):
                 print("Inserted pitstop laps for",result_id, race_id_pits, driver_id_db, forename, surname, stop, pitstopLap, pitstopTime, pitstopDuration)
                 # Commit changes to the database
                 conn.commit()
+            # If message is laps
+            if message.value['type']=="laps":  
+                # print("USLO U LAPS")
 
-                                
+
+
+
+                message_data = message.value['data']
+
+                season= message_data['season']
+                round = message_data['raceRound']
+                lapNumber = message_data['lapNumber']
+                driver_id_lap = message_data['driverId']
+                position = message_data['position']
+                lapTime=message_data['lapTime']
+
+                if round not in race_ids:
+                    cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", round))
+                    race_id_result = cursor.fetchone()
+
+                    race_ids[round] = race_id_result
+                    print("Idijevi su",race_ids)
+
+                cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id_lap,))
+                driver_info = cursor.fetchone()
+                if driver_info:
+                    # print("Info o driveru je",driver_info)
+                    driver_id_db, forename, surname = driver_info
+                else:
+                    print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
+                    continue
+                race_id_from_dict=race_ids[round][0]
+                # print("Race id from dict is",race_id_from_dict)
+                # Get resultId from the results table
+                cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id_from_dict, driver_id_db))
+                result_id_result = cursor.fetchone()
+                if result_id_result:
+                    result_id = result_id_result[0]
+                    # print("Result id je",result_id)
+                else:
+                    print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
+                    continue             
+
+                cursor.execute("""
+                                INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime))
+
+                            # Commit changes to the database
+                print("Unesen lap",result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime)
+                conn.commit()
+
+                     
 
     except Exception as error:
             print("Error:", error)
