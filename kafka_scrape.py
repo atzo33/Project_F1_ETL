@@ -409,7 +409,73 @@ def scraping_results_and_publishing_to_kafka(producer):
                 break
     except Exception as error:
         print("Error:", error)
-        
+
+import requests
+
+def scraping_lapsinfo_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            lap_number_incr = 1
+            race_data_found = False  
+            while True:
+                url = f"http://ergast.com/api/f1/2024/{race_number}/laps/{lap_number_incr}.json"
+                response = requests.get(url)
+                data = response.json()
+
+                if 'MRData' in data and 'RaceTable' in data['MRData']:
+                    race_data = data['MRData']['RaceTable']['Races']
+                    if race_data:
+                        race_data_found = True  # Set flag to True if race data is found
+                        race_data = race_data[0]
+                        season = race_data['season']
+                        race_round = race_data['round']
+                        race_id = None
+
+                        laps = race_data.get('Laps', [])
+                        for lap_data in laps:
+                            lap_number = lap_data['number']
+
+                            for timing in lap_data['Timings']:
+                                driver_id = timing['driverId']
+                                position = timing['position']
+                                lap_time = timing['time']
+
+                                laps_data = {
+                                    "season": season,
+                                    "raceRound": race_number,
+                                    "lapNumber": lap_number,
+                                    "driverId": driver_id,
+                                    "position": position,
+                                    "lapTime": lap_time
+                                }
+
+                                producer.send('data_topic', {"type": "laps", "data": laps_data}, partition=0)
+                                print("Laps data is ", laps_data)
+                                producer.flush()
+
+                        # Increment lap number for the next iteration
+                        lap_number_incr += 1
+                    else:
+                        print("No race data found for race", race_number)
+                        break  
+                else:
+                    print("Failed to fetch data from the API for race", race_number)
+                    break
+            
+            if not race_data_found:  
+                break
+            
+            
+            race_number += 1
+            
+    except Exception as e:
+        print("An error occurred:", e)
+
+
+
+
 # Initialize Kafka producer
 producer = KafkaProducer(bootstrap_servers='localhost:9092',
                          value_serializer=lambda x: json.dumps(x).encode('utf-8'))
@@ -421,4 +487,5 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092',
 # scraping_race_and_publishing_to_kafka(producer)
 # scraping_driverstandings_and_publishing_to_kafka(producer)
 # scraping_constructorstandings_and_publishing_to_kafka(producer)
-scraping_results_and_publishing_to_kafka(producer)
+# scraping_results_and_publishing_to_kafka(producer)
+scraping_lapsinfo_and_publishing_to_kafka(producer)

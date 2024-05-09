@@ -22,6 +22,7 @@ def insert_data(consumer):
     driverStandings_id=80000
     constructorStandings_id=30000
     result_id=30000
+    race_ids={}
     
     try:
         conn = psycopg2.connect(
@@ -34,7 +35,7 @@ def insert_data(consumer):
         cursor = conn.cursor()
         
         for message in consumer:
-            print("Poruka je")
+            # print("Poruka je")
             #If type of message is circuit
              
             if message.value['type']=="circuit":
@@ -398,6 +399,57 @@ def insert_data(consumer):
                 print("Rezultat sa id-em",result_id)
                 result_id = result_id + 1
 
+            if message.value['type']=="laps":  
+                # print("USLO U LAPS")
+                
+
+                
+
+                message_data = message.value['data']
+
+                season= message_data['season']
+                round = message_data['raceRound']
+                lapNumber = message_data['lapNumber']
+                driver_id_lap = message_data['driverId']
+                position = message_data['position']
+                lapTime=message_data['lapTime']
+
+                if round not in race_ids:
+                    cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", round))
+                    race_id_result = cursor.fetchone()
+
+                    race_ids[round] = race_id_result
+                    print("Idijevi su",race_ids)
+
+                cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id_lap,))
+                driver_info = cursor.fetchone()
+                if driver_info:
+                    # print("Info o driveru je",driver_info)
+                    driver_id_db, forename, surname = driver_info
+                else:
+                    print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
+                    continue
+                race_id_from_dict=race_ids[round][0]
+                # print("Race id from dict is",race_id_from_dict)
+                # Get resultId from the results table
+                cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id_from_dict, driver_id_db))
+                result_id_result = cursor.fetchone()
+                if result_id_result:
+                    result_id = result_id_result[0]
+                    # print("Result id je",result_id)
+                else:
+                    print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
+                    continue             
+                
+                cursor.execute("""
+                                INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime))
+
+                            # Commit changes to the database
+                print("Unesen lap",result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime)
+                conn.commit()
+              
                 
 
     except Exception as error:
