@@ -399,58 +399,107 @@ def insert_data(consumer):
                 print("Rezultat sa id-em",result_id)
                 result_id = result_id + 1
 
-            if message.value['type']=="laps":  
-                # print("USLO U LAPS")
+            if message.value['type']=="qualificationOrder":  
+                # print("USLO U QUALIFICATION ORDER")
                 
 
                 
 
                 message_data = message.value['data']
 
-                season= message_data['season']
-                round = message_data['raceRound']
-                lapNumber = message_data['lapNumber']
-                driver_id_lap = message_data['driverId']
-                position = message_data['position']
-                lapTime=message_data['lapTime']
+                driver_id_quali= message_data['driverId']
+                forename = message_data['forename']
+                surname = message_data['surname']
+                constructorName = message_data['constructorName']
+                grid = message_data['grid']
+                year=message_data['year']
+                name_x=message_data['name_x']
+                round=message_data['round']
 
-                if round not in race_ids:
-                    cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', ("2024", round))
-                    race_id_result = cursor.fetchone()
+                # Get raceId from the race table
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (2024, round))
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id_quali = race_id_result[0]
+                    print("Race id is ",race_id_quali)
+                else:
+                    print(f"Race ID not found for season 2024 and round {round}. Exiting loop.")
+                    break
+                
+                # Get driverId from the driver table
+                cursor.execute('SELECT "driverId" FROM driver WHERE "driverRef" = %s', (driver_id_quali,))
+                driver_id_result = cursor.fetchone()
+                if driver_id_result:
+                    driver_id_db = driver_id_result[0]
+                else:
+                    print(f"Driver ID not found in the database for driverId {driver_id}. Skipping.")
+                    continue
 
-                    race_ids[round] = race_id_result
-                    print("Idijevi su",race_ids)
+                # Insert qualification order info into the qualificationorder table
+                cursor.execute("""
+                    INSERT INTO qualificationorder ("raceId", "driverId", "forename", "surname", "constructorName", "grid", "year", "name_x")
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (race_id_quali, driver_id_db, forename, surname, constructorName, grid, year, name_x))
 
-                cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id_lap,))
+                print("Inserted order for",race_id_quali, driver_id_db, forename, surname, constructorName, grid, year, name_x)
+                # Commit changes to the database
+                conn.commit()
+
+                    
+            if message.value['type']=="pitstops":  
+                # print("USLO U PITSTOPS")
+                
+
+                
+
+                message_data = message.value['data']
+
+                driver_id_pits= message_data['driverId']
+                stop = message_data['stop']
+                pitstopLap = message_data['pitstopLap']
+                pitstopTime = message_data['pitstopTime']
+                pitstopDuration = message_data['pitstopDuration'] 
+                year=message_data['year']
+                round=message_data['round']
+
+                # Get raceId from the race table
+                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (2024, round))
+                race_id_result = cursor.fetchone()
+                if race_id_result:
+                    race_id_pits = race_id_result[0]
+                    print("Race id is ",race_id_pits)
+                else:
+                    print(f"Race ID not found for season 2024 and round {round}. Exiting loop.")
+                    break
+                
+                # Get driver info from the driver table
+                cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id_pits,))
                 driver_info = cursor.fetchone()
                 if driver_info:
-                    # print("Info o driveru je",driver_info)
                     driver_id_db, forename, surname = driver_info
                 else:
                     print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
                     continue
-                race_id_from_dict=race_ids[round][0]
-                # print("Race id from dict is",race_id_from_dict)
-                # Get resultId from the results table
-                cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id_from_dict, driver_id_db))
+                
+                #  Get resultId from the results table
+                cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id_pits, driver_id_db))
                 result_id_result = cursor.fetchone()
                 if result_id_result:
                     result_id = result_id_result[0]
-                    # print("Result id je",result_id)
                 else:
-                    print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
-                    continue             
-                
-                cursor.execute("""
-                                INSERT INTO lapsinfo ("resultId", "raceId", "driverId", "forename", "surname", "lap", "position", "time")
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            """, (result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime))
+                    print(f"Result ID not found for race ID {race_id_pits} and driver ID {driver_id_db}. Skipping.")
+                    continue
 
-                            # Commit changes to the database
-                print("Unesen lap",result_id, race_id_from_dict, driver_id_db, forename, surname, lapNumber, position, lapTime)
+                # Insert pit stop info into the pitstops table
+                cursor.execute("""
+                    INSERT INTO pitstops ("resultId", "raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (result_id, race_id_pits, driver_id_db, forename, surname, stop, pitstopLap, pitstopTime, pitstopDuration))
+                print("Inserted pitstop laps for",result_id, race_id_pits, driver_id_db, forename, surname, stop, pitstopLap, pitstopTime, pitstopDuration)
+                # Commit changes to the database
                 conn.commit()
-              
-                
+
+                                
 
     except Exception as error:
             print("Error:", error)

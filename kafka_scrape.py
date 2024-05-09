@@ -473,7 +473,118 @@ def scraping_lapsinfo_and_publishing_to_kafka(producer):
     except Exception as e:
         print("An error occurred:", e)
 
+def scraping_qualificationorder_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/qualifying.json"
+            response = requests.get(url)
+            data = response.json()
 
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_data = data['MRData']['RaceTable']['Races'][0]
+                season = race_data['season']
+                race_round = race_data['round']
+                race_id = None
+
+                # Get raceId from the race table
+                
+
+                qualifying_results = race_data.get('QualifyingResults', [])
+                for result_data in qualifying_results:
+                    driver_data = result_data['Driver']
+                    constructor_data = result_data['Constructor']
+                    driver_id = driver_data['driverId']
+                    forename = driver_data['givenName']
+                    surname = driver_data['familyName']
+                    constructor_name = constructor_data['name']
+                    grid = result_data['position']
+                    year = season
+                    name_x = race_data['raceName']
+
+                    quailificationOrder={
+                        "driverId":driver_id,
+                        "forename":forename,
+                        "surname":surname,
+                        "constructorName":constructor_name,
+                        "grid":grid,
+                        "year":year,
+                        "name_x":name_x,
+                        "round":race_number
+                    }
+
+                    producer.send('data_topic', {"type": "qualificationOrder", "data": quailificationOrder}, partition=0)
+                    print("Order data is ", quailificationOrder)
+                    producer.flush()
+
+                   
+                print("Race number is",race_number)
+                # Increment race number for the next iteration
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
+
+
+def scraping_pitstops_and_publishing_to_kafka(producer):
+    
+    try:
+        race_number = 1
+        while True:
+            url = f"http://ergast.com/api/f1/2024/{race_number}/pitstops.json"
+            response = requests.get(url)
+            data = response.json()
+
+            if 'MRData' in data and 'RaceTable' in data['MRData']:
+                race_data = data['MRData']['RaceTable']['Races'][0]
+                season = race_data['season']
+                race_round = race_data['round']
+                
+                pitstops = race_data.get('PitStops', [])
+                for pitstop_data in pitstops:
+                    driver_id = pitstop_data['driverId']
+                    stop = pitstop_data['stop']
+                    pitstop_lap = pitstop_data['lap']
+                    pitstop_time = pitstop_data['time']
+                    pitstop_duration = pitstop_data['duration']
+
+                    print("Pitstop duration is",pitstop_duration)
+                    if not isinstance(pitstop_duration, float):
+                        try:
+                            pitstop_duration = float(pitstop_duration)
+                        except ValueError:
+                            pitstop_duration = None
+
+
+
+                    pitstops={
+                        "driverId":driver_id,
+                        "stop":stop,
+                        "pitstopLap":pitstop_lap,
+                        "pitstopTime":pitstop_time,
+                        "pitstopDuration":pitstop_duration,
+                        "year":season,
+                        "round":race_round
+                    } 
+
+                    producer.send('data_topic', {"type": "pitstops", "data": pitstops}, partition=0)
+                    print("Pitstop data is ", pitstops)
+                    producer.flush()
+
+                    
+
+                    
+                print("Race number is",race_number)
+                # Increment race number for the next iteration
+                race_number += 1
+            else:
+                print("Failed to fetch data from the API.")
+                break
+    except Exception as error:
+        print("Error:", error)
 
 
 # Initialize Kafka producer
@@ -488,4 +599,6 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092',
 # scraping_driverstandings_and_publishing_to_kafka(producer)
 # scraping_constructorstandings_and_publishing_to_kafka(producer)
 # scraping_results_and_publishing_to_kafka(producer)
-scraping_lapsinfo_and_publishing_to_kafka(producer)
+# scraping_lapsinfo_and_publishing_to_kafka(producer)
+# scraping_qualificationorder_and_publishing_to_kafka(producer)
+scraping_pitstops_and_publishing_to_kafka(producer)
