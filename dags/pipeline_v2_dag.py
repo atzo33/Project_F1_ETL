@@ -3,6 +3,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 import psycopg2
 import pandas as pd
+import csv
 
 default_args = {
     'owner': 'airflow',
@@ -17,7 +18,7 @@ def drop_tables():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -62,7 +63,7 @@ def create_tables():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -142,6 +143,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "driverstandings" (
                    "driverStandingsId" INT PRIMARY KEY,
+                   "raceId" INT,
                    "driverId" INT,
                    "forename" VARCHAR,
                    "surname" VARCHAR,
@@ -152,6 +154,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "constructorstandings" (
                    "constructorStandingsId" INT PRIMARY KEY,
+                   "raceId" INT,
                    "constructorId" INT,
                    "constructorName" VARCHAR,
                    "points" INT,
@@ -161,6 +164,7 @@ def create_tables():
             
             '''CREATE TABLE IF NOT EXISTS "lapsinfo" (
                    "resultId" INT,
+                   "raceId" INT,
                    "driverId" INT,
                    "forename" VARCHAR,
                    "surname" VARCHAR,
@@ -184,6 +188,7 @@ def create_tables():
 
             '''CREATE TABLE IF NOT EXISTS "pitstops" (
                 "resultId" INT,
+                "raceId" INT,
                 "driverId" INT,
                 "forename" VARCHAR,
                 "surname" VARCHAR,
@@ -212,47 +217,50 @@ def create_tables():
             cursor.close()
             conn.close()
             print("PostgreSQL connection is closed")
-
 def etl_results():
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-        results_dict = {}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create dictionary to store results
+            results_dict = {}
+            
+            # Process each row
+            for row in reader:
+                result_id = row["resultId"]
+                if result_id not in results_dict:
+                    results_dict[result_id] = {
+                        "resultId": row["resultId"],
+                        "raceId": row["raceId"],
+                        "driverId": row["driverId"],
+                        "constructorId": row["constructorId"],
+                        "carNumber": row["number"],
+                        "number_drivers": row["number_drivers"],
+                        "positionOrder": row["positionOrder"],
+                        "code": row["code"],
+                        "forename": row["forename"],
+                        "surname": row["surname"],
+                        "dob": row["dob"],
+                        "nationality": row["nationality"],
+                        "points": row["points"],
+                        "laps": row["laps"],
+                        "time": row["time"],
+                        "fastestLap": row["fastestLap"],
+                        "rank": row["rank"],
+                        "fastestLapTime": row["fastestLapTime"],
+                        "fastestLapSpeed": row["fastestLapSpeed"],
+                        "positionFinish": row["position"],
+                        "driverStandingsId": row["driverStandingsId"],
+                        "constructorStandingsId": row["constructorStandingsId"],
+                        "status": row["status"],
+                        "driverRef": row["driverRef"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            if result_id not in results_dict:
-                results_dict[result_id] = {
-                    "resultId":row["resultId"],
-                    "raceId": row["raceId"],
-                    "driverId": row["driverId"],
-                    "constructorId": row["constructorId"],
-                    "carNumber": row["number"],
-                    "number_drivers": row["number_drivers"],
-                    "positionOrder": row["positionOrder"],
-                    "code": row["code"],
-                    "forename": row["forename"],
-                    "surname": row["surname"],
-                    "dob": row["dob"],
-                    "nationality": row["nationality"],
-                    "points": row["points"],
-                    "laps": row["laps"],
-                    "time": row["time"],
-                    "fastestLap": row["fastestLap"],
-                    "rank": row["rank"],
-                    "fastestLapTime": row["fastestLapTime"],
-                    "fastestLapSpeed": row["fastestLapSpeed"],
-                    "positionFinish": row["position"],
-                    "driverStandingsId": row["driverStandingsId"],
-                    "constructorStandingsId": row["constructorStandingsId"],
-                    "status": row["status"],
-                    "driverRef": row["driverRef"]
-                }
     except Exception as error:
         print("Error:", error)
+    
 
     try:
         # Connect to PostgreSQL database
@@ -260,7 +268,7 @@ def etl_results():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -275,6 +283,7 @@ def etl_results():
         
         # Iterate through each result in the results dictionary and insert into the results table
         for result_id, data in results_dict.items():
+            points=int(float(data["points"]))
             cursor.execute("""
                 INSERT INTO results ("resultId", "raceId", "driverId", "constructorId", "carNumber", "positionOrder", "points", "laps", "time", "fastestLap", "rankOfFastestLap", "fastestLapTime", "fastestLapSpeed", "positionFinish", "driverStandingsId", "constructorStandingsId", "status")
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -285,7 +294,7 @@ def etl_results():
                 data["constructorId"],
                 data["carNumber"],
                 data["positionOrder"],
-                data["points"],
+                points,
                 data["laps"],
                 data["time"],
                 data["fastestLap"],
@@ -314,40 +323,38 @@ def etl_results():
 
 def etl_driver():
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data       
-        driver_dict={}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create dictionary to store driver data
+            driver_dict = {}
+            
+            # Process each row
+            for row in reader:
+                driver_id = row["driverId"]
+                if driver_id not in driver_dict:
+                    driver_dict[driver_id] = {
+                        "driverId": row["driverId"],
+                        "driverRef": row["driverRef"],
+                        "number_drivers": row["number_drivers"],
+                        "code": row["code"],
+                        "forename": row["forename"],
+                        "surname": row["surname"],
+                        "dob": row["dob"],
+                        "nationality": row["nationality"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-            if driver_id not in driver_dict:
-                driver_dict[driver_id] = {
-                    "driverId":row["driverId"],
-                    "driverRef": row["driverRef"],
-                    "number_drivers": row["number_drivers"],
-                    "code": row["code"],
-                    "forename": row["forename"],
-                    "surname": row["surname"],
-                    "dob": row["dob"],
-                    "nationality": row["nationality"]
-                }
     except Exception as error:
         print("Error:", error)
-    
     try:
         # Connect to PostgreSQL database
         conn = psycopg2.connect(
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -391,39 +398,37 @@ def etl_driver():
 
 def etl_race():
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        race_dict={}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create a dictionary to store race data
+            race_dict = {}
+            
+            # Process each row
+            for row in reader:
+                race_id = row["raceId"]
+                if race_id not in race_dict:
+                    race_dict[race_id] = {
+                        "raceId": row["raceId"],
+                        "circuitId": row["circuitId"],
+                        "year": row["year"],
+                        "round": row["round"],
+                        "fp1Date": row["fp1_date"],
+                        "fp1Time": row["fp1_time"],
+                        "fp2Date": row["fp2_date"],
+                        "fp2Time": row["fp2_time"],
+                        "fp3Date": row["fp3_date"],
+                        "fp3Time": row["fp3_time"],
+                        "qualiDate": row["quali_date"],
+                        "qualiTime": row["quali_time"],
+                        "sprintDate": row["sprint_date"],
+                        "sprintTime": row["sprint_time"],
+                        "date": row["date"],
+                        "time": row["time_races"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-            if row["raceId"] not in race_dict:
-                race_dict[row["raceId"]] = {
-                    "raceId":row["raceId"],
-                    "circuitId": row["circuitId"],
-                    "year": row["year"],
-                    "round": row["round"],
-                    "fp1Date": row["fp1_date"],
-                    "fp1Time": row["fp1_time"],
-                    "fp2Date": row["fp2_date"],
-                    "fp2Time": row["fp2_time"],
-                    "fp3Date": row["fp3_date"],
-                    "fp3Time": row["fp3_time"],
-                    "qualiDate": row["quali_date"],
-                    "qualiTime": row["quali_time"],
-                    "sprintDate": row["sprint_date"],
-                    "sprintTime": row["sprint_time"],
-                    "date": row["date"],
-                    "time": row["time_races"]
-                }
     except Exception as error:
         print("Error:", error)
 
@@ -433,7 +438,7 @@ def etl_race():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -487,21 +492,20 @@ def etl_race():
 
 def etl_circuit():
     try:
-
-        df = pd.read_csv('dataEngineeringDataset.csv')
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
             
+            # Create a dictionary to store circuit data
+            circuit_dict = {}
             
-        
-        circuit_dict={}
-        for index, row in df.iterrows():
-                result_id = row["resultId"]
-                driver_id = row["driverId"]
-                lap = row["lap"]
-                stop = row["stop"]
-
-                if row["circuitId"] not in circuit_dict:
-                    circuit_dict[row["circuitId"]] = {
-                        "circuitId":row["circuitId"],
+            # Process each row
+            for row in reader:
+                circuit_id = row["circuitId"]
+                if circuit_id not in circuit_dict:
+                    circuit_dict[circuit_id] = {
+                        "circuitId": row["circuitId"],
                         "name_x": row["name_x"],
                         "name_y": row["name_y"],
                         "location": row["location"],
@@ -510,17 +514,16 @@ def etl_circuit():
                         "lng": row["lng"],
                         "alt": row["alt"]
                     }
-            
+
     except Exception as error:
         print("Error:", error)
-
     try:
         # Connect to PostgreSQL database
         conn = psycopg2.connect(
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -596,7 +599,7 @@ def etl_qualiOrder():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -634,33 +637,26 @@ def etl_qualiOrder():
             print("PostgreSQL connection is closed")
     
 def etl_constructor():
-
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        
-        
-        
-        constructor_dict={}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create a dictionary to store constructor data
+            constructor_dict = {}
+            
+            # Process each row
+            for row in reader:
+                constructor_id = row["constructorId"]
+                if constructor_id not in constructor_dict:
+                    constructor_dict[constructor_id] = {
+                        "constructorId": row["constructorId"],
+                        "constructorRef": row["constructorRef"],
+                        "name": row["name"],
+                        "nationality_constructors": row["nationality_constructors"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-            if row["constructorId"] not in constructor_dict:
-                constructor_dict[row["constructorId"]] = {
-                    "constructorId":row["constructorId"],
-                    "constructorRef":row["constructorRef"],
-                    "name":row["name"],
-                    "nationality_constructors":row["nationality_constructors"]
-                }
-    
     except Exception as error:
         print("Error:", error)
 
@@ -670,7 +666,7 @@ def etl_constructor():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -710,33 +706,27 @@ def etl_constructor():
     
 def etl_constructorStanding():
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        
-        
-        
-        
-        constructorStanding_dict={}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create a dictionary to store constructor standing data
+            constructorStanding_dict = {}
+            
+            # Process each row
+            for row in reader:
+                standings_id = row["constructorStandingsId"]
+                if standings_id not in constructorStanding_dict:
+                    constructorStanding_dict[standings_id] = {
+                        "constructorStandingsId": row["constructorStandingsId"],
+                        "constructorId": row["constructorId"],
+                        "constructorRef": row["constructorRef"],
+                        "points": row["points_constructorstandings"],
+                        "position": row["position_constructorstandings"],
+                        "wins": row["wins_constructorstandings"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-            if row["constructorStandingsId"] not in constructorStanding_dict:
-                constructorStanding_dict[row["constructorStandingsId"]] = {
-                    "constructorStandingsId":row["constructorStandingsId"],
-                    "constructorId": row["constructorId"],
-                    "constructorRef": row["constructorRef"],
-                    "points": row["points_constructorstandings"],
-                    "position": row["position_constructorstandings"],
-                    "wins": row["wins_constructorstandings"]
-                }
     except Exception as error:
         print("Error:", error)
 
@@ -746,7 +736,7 @@ def etl_constructorStanding():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -755,6 +745,7 @@ def etl_constructorStanding():
 
         # Iterate through each entry in the constructorStanding dictionary and insert into the constructorstandings table
         for constructorStandingsId, data in constructorStanding_dict.items():
+            points=int(float(data["points"]))
             cursor.execute("""
                 INSERT INTO constructorstandings ("constructorStandingsId", "constructorId", "constructorName", "points", "position", "wins")
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -762,7 +753,7 @@ def etl_constructorStanding():
                 data["constructorStandingsId"],
                 data["constructorId"],
                 data["constructorRef"],
-                data["points"],
+                points,
                 data["position"],
                 data["wins"]
             ))
@@ -782,40 +773,31 @@ def etl_constructorStanding():
             print("PostgreSQL connection is closed")
 
 def etl_driverStandings():
-
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        
-        
-        
-        
-        
-        driverStandings_dict={}
-
-
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
             
-            if row["driverStandingsId"] not in driverStandings_dict:
-                driverStandings_dict[row["driverStandingsId"]] = {
-                    "driverStandingsId":row["driverStandingsId"],
-                    "driverId": row["driverId"],
-                    "forename": row["forename"],
-                    "surname": row["surname"],
-                    "points": row["points_driverstandings"],
-                    "position": row["position_driverstandings"],
-                    "wins": row["wins"]
-                }
-
-
+            # Create a dictionary to store driver standings data
+            driverStandings_dict = {}
+            
+            # Process each row
+            for row in reader:
+                
+                standings_id = row["driverStandingsId"]
+                if standings_id not in driverStandings_dict:
+                    driverStandings_dict[standings_id] = {
+                        "driverStandingsId": row["driverStandingsId"],
+                        "raceId":row["raceId"],
+                        "driverId": row["driverId"],
+                        "forename": row["forename"],
+                        "surname": row["surname"],
+                        "points": row["points_driverstandings"],
+                        "position": row["position_driverstandings"],
+                        "wins": row["wins"]
+                    }
+            print("Driverstandings mapa je",driverStandings_dict)
     except Exception as error:
         print("Error:", error)
 
@@ -825,7 +807,7 @@ def etl_driverStandings():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -834,15 +816,17 @@ def etl_driverStandings():
 
         # Iterate through each entry in the driverStandings dictionary and insert into the driverstandings table
         for driverStandingsId, data in driverStandings_dict.items():
+            points=int(float(data["points"]))
             cursor.execute("""
-                INSERT INTO driverstandings ("driverStandingsId", "driverId", "forename", "surname", "points", "position", "wins")
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO driverstandings ("driverStandingsId","raceId", "driverId", "forename", "surname", "points", "position", "wins")
+                VALUES (%s, %s, %s, %s, %s, %s, %s ,%s)
             """, (
                 data["driverStandingsId"],
+                data["raceId"],
                 data["driverId"],
                 data["forename"],
                 data["surname"],
-                data["points"],
+                points,
                 data["position"],
                 data["wins"]
             ))
@@ -862,39 +846,30 @@ def etl_driverStandings():
             print("PostgreSQL connection is closed")
 
 def etl_laptimes():
-
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        
-        
-        
-        
-        
-        
-        laptimes_dict = {}
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create a dictionary to store lap times data
+            laptimes_dict = {}
+            
+            # Process each row
+            for row in reader:
+                key = (row["resultId"], row["driverId"], row["lap"])
+                if key not in laptimes_dict:
+                    laptimes_dict[key] = {
+                        "resultId": row["resultId"],
+                        "raceId":row["raceId"],
+                        "driverId": row["driverId"],
+                        "forename": row["forename"],
+                        "surname": row["surname"],
+                        "lap": row["lap"],
+                        "position_laptimes": row["position_laptimes"],
+                        "time_laptimes": row["time_laptimes"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-
-            if (result_id, driver_id, lap) not in laptimes_dict:
-                laptimes_dict[(result_id, driver_id, lap)] = {
-                    "resultId":row["resultId"],
-                    "driverId":row["driverId"],
-                    "forename": row["forename"],
-                    "surname": row["surname"],
-                    "lap":row["lap"],
-                    "position_laptimes": row["position_laptimes"],
-                    "time_laptimes": row["time_laptimes"]
-                }
     except Exception as error:
         print("Error:", error)
     
@@ -904,7 +879,7 @@ def etl_laptimes():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -914,10 +889,11 @@ def etl_laptimes():
         # Iterate through each entry in the laptimes dictionary and insert into the laptimes table
         for key, data in laptimes_dict.items():
             cursor.execute("""
-                INSERT INTO lapsinfo ("resultId", "driverId", "forename", "surname", "lap", "position", "time")
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO lapsinfo ("resultId","raceId", "driverId", "forename", "surname", "lap", "position", "time")
+                VALUES (%s,%s, %s, %s, %s, %s, %s, %s)
             """, (
                 data["resultId"],
+                data["raceId"],
                 data["driverId"],
                 data["forename"],
                 data["surname"],
@@ -942,38 +918,30 @@ def etl_laptimes():
 
 def etl_pitstops():
     try:
-        # Read the CSV file into a pandas DataFrame
-        # df = pd.read_csv('dataSetPart.csv')
-        df = pd.read_csv('dataEngineeringDataset.csv')
-        
-        # Create dictionaries to store data
-       
-        
-        
-        
-        
-        
-        
-        
-        pitstops_dict = {} 
+        # Open the CSV file
+        with open('dataEngineeringDataset.csv', mode='r') as file:
+            # Create a CSV reader
+            reader = csv.DictReader(file)
+            
+            # Create a dictionary to store pit stops data
+            pitstops_dict = {}
+            
+            # Process each row
+            for row in reader:
+                key = (row["resultId"], row["driverId"], row["stop"])
+                if key not in pitstops_dict:
+                    pitstops_dict[key] = {
+                        "resultId": row["resultId"],
+                        "raceId":row["raceId"],
+                        "driverId": row["driverId"],
+                        "forename": row["forename"],
+                        "surname": row["surname"],
+                        "stop": row["stop"],
+                        "lap_pitstops": row["lap_pitstops"],
+                        "time_pitstops": row["time_pitstops"],
+                        "duration": row["duration"]
+                    }
 
-        for index, row in df.iterrows():
-            result_id = row["resultId"]
-            driver_id = row["driverId"]
-            lap = row["lap"]
-            stop = row["stop"]
-
-            if (result_id, driver_id, stop) not in pitstops_dict:
-                pitstops_dict[(result_id, driver_id, stop)] = {
-                    "resultId":row["resultId"],
-                    "driverId":row["driverId"],
-                    "forename": row["forename"],
-                    "surname": row["surname"],
-                    "stop":row["stop"],
-                    "lap_pitstops": row["lap_pitstops"],
-                    "time_pitstops": row["time_pitstops"],
-                    "duration": row["duration"]
-                }  
     except Exception as error:
         print("Error:", error)
 
@@ -983,7 +951,7 @@ def etl_pitstops():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -1005,18 +973,23 @@ def etl_pitstops():
             
             
 
-            
+            print("Trajanje pitstopa prije parsa",data["duration"])
     
             pitstop_duration=data["duration"]
             
             if not isinstance(pitstop_duration, float):
-                pitstop_duration = None
-
+                        try:
+                            pitstop_duration = float(pitstop_duration)
+                        except ValueError:
+                            pitstop_duration = None
+            
+            print("Trajanje pitstopa nakon parsa",pitstop_duration)
             cursor.execute("""
-                INSERT INTO pitstops ("resultId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO pitstops ("resultId","raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
+                VALUES (%s, %s,%s, %s, %s, %s, %s, %s, %s)
             """, (
                 data["resultId"],
+                data["raceId"],
                 data["driverId"],
                 data["forename"],
                 data["surname"],
@@ -1044,7 +1017,7 @@ def etl_pitstops():
 
 
 
-with DAG('etlPipelinev2', 
+with DAG('atzovPipeline2', 
          default_args=default_args,
          schedule_interval=None) as dag:
 

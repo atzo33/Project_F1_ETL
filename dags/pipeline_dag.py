@@ -64,7 +64,7 @@ def create_tables():
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -441,7 +441,7 @@ def insert_results_data(results_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -500,7 +500,7 @@ def insert_driver_data(driver_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -549,7 +549,7 @@ def insert_circuit_data(circuit_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -599,7 +599,7 @@ def insert_race_data(race_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -659,7 +659,7 @@ def insert_qualification_order_data(qualiOrder_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -703,7 +703,7 @@ def insert_constructor_standings_data(constructorStanding_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -746,7 +746,7 @@ def insert_driver_standings_data(driverStandings_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -790,7 +790,7 @@ def insert_laptimes_data(laptimes_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -834,7 +834,7 @@ def insert_pitstops_data(pitstops_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -889,7 +889,7 @@ def insert_constructor_data(constructor_dict):
             dbname="f1_database",
             user="airflow",
             password="airflow",
-            host="praksa_postgres_1",
+            host="project_f1_etl_postgres_1",
             port="5432"
         )
         
@@ -1688,95 +1688,95 @@ def insert_constructor_data(constructor_dict):
 #             print("PostgreSQL connection is closed")
 
 # def scraping_data_and_loading_pitstops():
-    try:
-        conn = psycopg2.connect(
-            dbname="f1_database",
-            user="airflow",
-            password="airflow",
-            host="praksa_postgres_1",
-            port="5432"
-        )
-        cursor = conn.cursor()
+    # try:
+    #     conn = psycopg2.connect(
+    #         dbname="f1_database",
+    #         user="airflow",
+    #         password="airflow",
+    #         host="project_f1_etl_postgres_1",
+    #         port="5432"
+    #     )
+    #     cursor = conn.cursor()
 
-        race_number = 1
+    #     race_number = 1
 
-        while True:
-            url = f"http://ergast.com/api/f1/2024/{race_number}/pitstops.json"
-            response = requests.get(url)
-            data = response.json()
+    #     while True:
+    #         url = f"http://ergast.com/api/f1/2024/{race_number}/pitstops.json"
+    #         response = requests.get(url)
+    #         data = response.json()
 
-            if 'MRData' in data and 'RaceTable' in data['MRData']:
-                race_data = data['MRData']['RaceTable']['Races'][0]
-                season = race_data['season']
-                race_round = race_data['round']
-                race_id = None
+    #         if 'MRData' in data and 'RaceTable' in data['MRData']:
+    #             race_data = data['MRData']['RaceTable']['Races'][0]
+    #             season = race_data['season']
+    #             race_round = race_data['round']
+    #             race_id = None
 
-                # Get raceId from the race table
-                cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
-                race_id_result = cursor.fetchone()
-                if race_id_result:
-                    race_id = race_id_result[0]
-                else:
-                    print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
-                    break
+    #             # Get raceId from the race table
+    #             cursor.execute('SELECT "raceId" FROM race WHERE "year" = %s AND "round" = %s', (season, race_round))
+    #             race_id_result = cursor.fetchone()
+    #             if race_id_result:
+    #                 race_id = race_id_result[0]
+    #             else:
+    #                 print(f"Race ID not found for season {season} and round {race_round}. Exiting loop.")
+    #                 break
 
-                pitstops = race_data.get('PitStops', [])
-                for pitstop_data in pitstops:
-                    driver_id = pitstop_data['driverId']
-                    stop = pitstop_data['stop']
-                    pitstop_lap = pitstop_data['lap']
-                    pitstop_time = pitstop_data['time']
-                    pitstop_duration = pitstop_data['duration']
+    #             pitstops = race_data.get('PitStops', [])
+    #             for pitstop_data in pitstops:
+    #                 driver_id = pitstop_data['driverId']
+    #                 stop = pitstop_data['stop']
+    #                 pitstop_lap = pitstop_data['lap']
+    #                 pitstop_time = pitstop_data['time']
+    #                 pitstop_duration = pitstop_data['duration']
 
-                    print("Pitstop duration is",pitstop_duration)
-                    if not isinstance(pitstop_duration, float):
-                        try:
-                            pitstop_duration = float(pitstop_duration)
-                        except ValueError:
-                            pitstop_duration = None
+    #                 print("Pitstop duration is",pitstop_duration)
+    #                 if not isinstance(pitstop_duration, float):
+    #                     try:
+    #                         pitstop_duration = float(pitstop_duration)
+    #                     except ValueError:
+    #                         pitstop_duration = None
 
-                    # Get driver info from the driver table
-                    cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
-                    driver_info = cursor.fetchone()
-                    if driver_info:
-                        driver_id_db, forename, surname = driver_info
-                    else:
-                        print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
-                        continue
+    #                 # Get driver info from the driver table
+    #                 cursor.execute('SELECT "driverId", "forename", "surname" FROM driver WHERE "driverRef" = %s', (driver_id,))
+    #                 driver_info = cursor.fetchone()
+    #                 if driver_info:
+    #                     driver_id_db, forename, surname = driver_info
+    #                 else:
+    #                     print(f"Driver not found in the database for driverId {driver_id}. Skipping.")
+    #                     continue
 
-                    # Get resultId from the results table
-                    cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id_db))
-                    result_id_result = cursor.fetchone()
-                    if result_id_result:
-                        result_id = result_id_result[0]
-                    else:
-                        print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
-                        continue
+    #                 # Get resultId from the results table
+    #                 cursor.execute('SELECT "resultId" FROM results WHERE "raceId" = %s AND "driverId" = %s', (race_id, driver_id_db))
+    #                 result_id_result = cursor.fetchone()
+    #                 if result_id_result:
+    #                     result_id = result_id_result[0]
+    #                 else:
+    #                     print(f"Result ID not found for race ID {race_id} and driver ID {driver_id_db}. Skipping.")
+    #                     continue
 
-                    # Insert pit stop info into the pitstops table
-                    cursor.execute("""
-                        INSERT INTO pitstops ("resultId", "raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (result_id, race_id, driver_id_db, forename, surname, stop, pitstop_lap, pitstop_time, pitstop_duration))
+    #                 # Insert pit stop info into the pitstops table
+    #                 cursor.execute("""
+    #                     INSERT INTO pitstops ("resultId", "raceId", "driverId", "forename", "surname", "stop", "pitstopLap", "pitstopTime", "pitstopDuration")
+    #                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    #                 """, (result_id, race_id, driver_id_db, forename, surname, stop, pitstop_lap, pitstop_time, pitstop_duration))
 
-                    # Commit changes to the database
-                    conn.commit()
+    #                 # Commit changes to the database
+    #                 conn.commit()
 
-                # Increment race number for the next iteration
-                race_number += 1
-            else:
-                print("Failed to fetch data from the API.")
-                break
-    except Exception as error:
-        print("Error:", error)
-    finally:
-        # Closing database connection
-        if conn:
-            cursor.close()
-            conn.close()
-            print("PostgreSQL connection is closed")
+    #             # Increment race number for the next iteration
+    #             race_number += 1
+    #         else:
+    #             print("Failed to fetch data from the API.")
+    #             break
+    # except Exception as error:
+    #     print("Error:", error)
+    # finally:
+    #     # Closing database connection
+    #     if conn:
+    #         cursor.close()
+    #         conn.close()
+    #         print("PostgreSQL connection is closed")
 
-with DAG('etlPipeline', 
+with DAG('atzovPipeline', 
          default_args=default_args,
          schedule_interval=None) as dag:
 
